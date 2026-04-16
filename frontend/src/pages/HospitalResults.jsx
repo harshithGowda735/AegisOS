@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 
+
 const HospitalResults = () => {
   const { triageData, hospitals, bestHospital, isLoading, resetSession } = useAppStore();
   const navigate = useNavigate();
@@ -94,6 +95,8 @@ const HospitalResults = () => {
                    <div className="flex items-center gap-1.5"><Sparkles size={12} className="text-sky-500" /> AI Ranked</div>
                 </div>
              </div>
+
+
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 page-animate opacity-0" style={{ animationDelay: '200ms' }}>
                 {hospitals.map(hospital => (

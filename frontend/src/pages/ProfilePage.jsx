@@ -10,11 +10,20 @@ import {
   ChevronRight,
   ShieldCheck,
   Check,
-  UserCircle
+  UserCircle,
+  MapPin,
+  ShieldAlert,
+  CheckCircle2
 } from 'lucide-react';
 
+
 const ProfilePage = () => {
-  const { setUserProfile, isLoading } = useAppStore();
+  const { setUserProfile, processSymptoms, isLoading, initializeLocation } = useAppStore();
+
+  React.useEffect(() => {
+    initializeLocation();
+  }, [initializeLocation]);
+
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -34,10 +43,52 @@ const ProfilePage = () => {
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
 
+  const [analyzing, setAnalyzing] = useState(false);
+
   const handleSubmit = async () => {
+    setAnalyzing(true);
     const success = await setUserProfile(formData);
-    if (success) navigate('/triage');
+    if (success) {
+      if (formData.symptoms && formData.symptoms.trim().length > 0) {
+        // Trigger autonomous routing
+        await processSymptoms(formData.symptoms);
+        
+        // Artificial delay for 'Agent' feel
+        setTimeout(() => {
+          const { severity } = useAppStore.getState();
+          // Both regular and high severity now go to /booking to show the "Aegis Pay" flow
+          navigate('/booking');
+        }, 500);
+      } else {
+        navigate('/health-hub');
+      }
+    } else {
+      setAnalyzing(false);
+    }
   };
+
+  if (analyzing) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white font-sans text-center">
+        <div className="w-24 h-24 mb-8 relative">
+          <div className="absolute inset-0 border-4 border-sky-500/20 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+          <ShieldAlert className="absolute inset-0 m-auto text-sky-400 w-10 h-10 animate-pulse" />
+        </div>
+        <h2 className="text-3xl font-black tracking-tighter mb-4">Autonomous Node Analysis</h2>
+        <div className="space-y-3">
+          <p className="text-sky-400 text-xs font-black uppercase tracking-[0.3em] animate-pulse">Syncing Hospital Nodes...</p>
+          <div className="flex items-center justify-center gap-2 text-slate-400 text-[10px] uppercase font-bold tracking-widest">
+            <CheckCircle2 size={12} className="text-emerald-500" /> Bed Availability Verified
+          </div>
+          <div className="flex items-center justify-center gap-2 text-slate-400 text-[10px] uppercase font-bold tracking-widest">
+             <div className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping"></div>
+             Specialist Routing Active
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const toggleHistory = (condition) => {
     setFormData(prev => ({
@@ -242,6 +293,8 @@ const ProfilePage = () => {
                     )}
                   </div>
                 </div>
+
+
 
                 <Button
                   onClick={handleSubmit}

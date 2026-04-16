@@ -1,0 +1,423 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppStore } from '../store/useAppStore';
+import { 
+  User, 
+  FileText, 
+  Bell, 
+  Calendar, 
+  Activity, 
+  Coffee, 
+  Pill, 
+  Footprints, 
+  Upload, 
+  ChevronRight,
+  Plus,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  ShieldCheck
+} from 'lucide-react';
+import Button from '../components/ui/Button';
+import { hospitalService } from '../services/hospitalService';
+
+const HealthHub = () => {
+  const routerNavigate = useNavigate();
+  const { userProfile, currentPatientId } = useAppStore();
+  const [hubData, setHubData] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  const iconMap = {
+    Activity, Pill, Footprints, Bell, Clock, AlertCircle, Coffee, ShieldCheck
+  };
+
+  useEffect(() => {
+    if (currentPatientId) {
+      fetchHubData();
+    }
+  }, [currentPatientId]);
+
+  const fetchHubData = async () => {
+    try {
+      const data = await hospitalService.getHealthHubData(currentPatientId);
+      setHubData(data);
+    } catch (err) {
+      console.error("Fetch Hub Error:", err);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      await hospitalService.uploadReport(currentPatientId, file);
+      await fetchHubData();
+      if (Notification.permission === "granted") {
+        new Notification("AegisOS - Report Analyzed", {
+          body: "Your health plan has been updated based on the new report."
+        });
+      }
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Aegis Node Error: Failed to ingest clinical report. Verification failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const requestNotificationPermission = () => {
+    Notification.requestPermission();
+  };
+
+  if (!hubData && !userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-16 h-16 bg-sky-200 rounded-full mb-4"></div>
+          <p className="text-slate-400 font-medium font-sans">Securing your health portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const defaultRoutine = {
+    foodRoutine: { 
+      breakfast: "High-protein oatmeal with berries", 
+      lunch: "Mediterranean grilled chicken salad", 
+      dinner: "Steamed salmon with leafy greens", 
+      snacks: "Mixed nuts or Greek yogurt" 
+    },
+    medications: [],
+    lifestyle: { walking: "30 min morning light walk", maintenance: "General wellness check", hydration: "2.5L daily", fitness: "Light stretching" },
+    notifications: [
+      { icon: "Activity", message: "Aegis Protocol: Optimal routine active", time: "LIVE" },
+      { icon: "ShieldCheck", message: "Biometric monitoring secured", time: "SYNCED" }
+    ],
+    urgency: "Normal"
+  };
+
+  const routine = {
+    foodRoutine: hubData?.healthPlan?.foodRoutine || defaultRoutine.foodRoutine,
+    medications: hubData?.healthPlan?.medications || defaultRoutine.medications,
+    lifestyle: hubData?.healthPlan?.lifestyle || defaultRoutine.lifestyle,
+    notifications: hubData?.healthPlan?.notifications || defaultRoutine.notifications,
+    urgency: hubData?.healthPlan?.urgency || defaultRoutine.urgency,
+    lastUpdated: hubData?.healthPlan?.lastUpdated
+  };
+
+  // Safe mapping
+  const displayNotifications = routine.notifications || [];
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+      {/* Premium Header */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-tr from-sky-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-sky-200/50">
+              <User className="text-white w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black tracking-tight leading-none mb-1">Health Hub</h1>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${routine.urgency?.includes('Immediate') ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  {hubData?.name || userProfile?.name} • Protocol: {routine.urgency}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+             <button 
+              onClick={requestNotificationPermission}
+              className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all relative group"
+            >
+              <Bell size={20} />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full group-hover:scale-110 transition-transform"></span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
+        
+        {/* Left Column: AI Daily Routine */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* Daily Timeline */}
+          <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+               <Sparkles className="w-48 h-48" />
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-sky-50 rounded-2xl text-sky-600">
+                  <Calendar size={24} />
+                </div>
+                <h2 className="text-2xl font-black tracking-tighter">AI Daily Protocol</h2>
+              </div>
+              <div className="px-5 py-2.5 bg-emerald-50 border border-emerald-100 rounded-full text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em]">
+                Live: {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
+              </div>
+            </div>
+
+            <div className="space-y-8 relative">
+              {/* Vertical line connector */}
+              <div className="absolute left-[27px] top-8 bottom-8 w-0.5 bg-slate-100 hidden md:block"></div>
+
+              {/* Breakfast */}
+              <div className="flex flex-col md:flex-row gap-6 group relative z-10">
+                <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100 group-hover:scale-105 transition-all shrink-0">
+                  <Coffee size={28} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">08:00 AM • Morning</h3>
+                  </div>
+                  <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Nutritional Guidance</p>
+                    <p className="text-lg font-bold text-slate-800 leading-tight">{routine.foodRoutine.breakfast}</p>
+                    
+                    {(routine.medications || []).filter(m => m.time?.toLowerCase().includes('breakfast') || m.time?.toLowerCase().includes('morning')).map((m, i) => (
+                      <div key={i} className="mt-4 p-4 bg-sky-50 border border-sky-100 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Pill className="text-sky-600" size={18} />
+                          <p className="font-bold text-sky-900 text-sm">{m.name} <span className="text-[10px] opacity-60">({m.dosage})</span></p>
+                        </div>
+                        <CheckCircle2 className="text-sky-300" size={20} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Lunch */}
+              <div className="flex flex-col md:flex-row gap-6 group relative z-10">
+                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 group-hover:scale-105 transition-all shrink-0">
+                  <Activity size={28} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">01:30 PM • Mid-Day</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
+                      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Fuel Plan</p>
+                      <p className="text-sm font-bold text-slate-800">{routine.foodRoutine.lunch}</p>
+                    </div>
+                    <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-[2rem] flex flex-col justify-center">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Footprints className="text-indigo-600" size={18} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Activity & Fitness</span>
+                      </div>
+                      <p className="font-bold text-indigo-900 text-sm leading-tight mb-2">{routine.lifestyle.walking}</p>
+                      {routine.lifestyle.fitness && (
+                        <div className="mt-2 pt-2 border-t border-indigo-200">
+                           <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Targeted Exercise</p>
+                           <p className="text-xs font-bold text-indigo-800">{routine.lifestyle.fitness}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Evening */}
+              <div className="flex flex-col md:flex-row gap-6 group relative z-10">
+                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100 group-hover:scale-105 transition-all shrink-0">
+                  <Clock size={28} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">08:00 PM • Night</h3>
+                  </div>
+                  <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Dinner Insight</p>
+                    <p className="text-sm font-bold text-slate-800">{routine.foodRoutine.dinner}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* User Bio Stats Section */}
+          <section className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-500/10 to-transparent opacity-50 group-hover:scale-110 transition-transform duration-1000"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                   <h2 className="text-3xl font-black tracking-tighter">Clinical Bio-Profile</h2>
+                   <p className="text-sm text-slate-400 font-medium">Verified Aegis Patient Data</p>
+                </div>
+                <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-[2rem] flex items-center justify-center border border-white/10">
+                  <ShieldCheck className="text-sky-400 w-8 h-8" />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 group/stat hover:bg-white/10 transition-colors">
+                  <p className="text-sky-300 text-[10px] font-black uppercase tracking-widest mb-2">Patient Age</p>
+                  <p className="text-3xl font-black">{hubData?.age || userProfile?.age}<span className="text-xs font-medium ml-1 opacity-40">YRS</span></p>
+                </div>
+                <div className="bg-white/5 rounded-[2rem] p-6 border border-white/5 group/stat hover:bg-white/10 transition-colors">
+                  <p className="text-sky-300 text-[10px] font-black uppercase tracking-widest mb-2">Sex Marker</p>
+                  <p className="text-2xl font-black truncate">{hubData?.gender || userProfile?.gender || 'N/A'}</p>
+                </div>
+                <div className="bg-white/5 rounded-[2rem] p-6 border border-white/10 col-span-2">
+                  <p className="text-sky-300 text-[10px] font-black uppercase tracking-widest mb-3">Identified Conditions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(hubData?.medicalHistory || userProfile?.history || []).length > 0 ? (
+                      (hubData?.medicalHistory || userProfile?.history || []).map((h, i) => (
+                        <span key={i} className="px-4 py-2 bg-white/10 rounded-xl text-xs font-black uppercase tracking-wider border border-white/5 hover:bg-white/20 transition-all cursor-default">{h}</span>
+                      ))
+                    ) : (
+                      <span className="text-slate-500 font-bold italic text-sm">No clinical history records found in node databases</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Urgency Overlay for High Risk */}
+              {routine.urgency?.includes('Immediate') && (
+                <div className="mt-8 p-6 bg-red-500/10 border border-red-500/20 rounded-[2rem] flex items-center justify-between">
+                  <div>
+                    <p className="text-red-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Clinical Alert Level: High</p>
+                    <p className="text-red-100 font-bold">Urgent medical consultation detected as necessary protocol.</p>
+                  </div>
+                  <div className="p-3 bg-red-500 rounded-xl animate-pulse">
+                    <AlertCircle size={20} className="text-white" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: Alerts & Vault */}
+        <div className="space-y-8">
+          
+          {/* AI Advisor Badge (Premium Mobile Look) */}
+          <div className="bg-gradient-to-br from-sky-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-sky-500/30 relative overflow-hidden group">
+            <Activity className="absolute bottom-[-20%] right-[-10%] w-40 h-40 opacity-10 group-hover:rotate-12 transition-transform duration-700" />
+            <div className="relative z-10 text-center">
+               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-white/20">
+                  <Sparkles size={32} />
+               </div>
+               <h3 className="font-black text-xl tracking-tighter mb-3 leading-tight">Dynamic Guidance</h3>
+               <p className="text-sky-50 text-xs font-medium leading-relaxed mb-6">
+                Your routine is mathematically optimized based on 12 bio-markers detected in your profile.
+               </p>
+               <div className="flex items-center justify-center gap-2 py-2 px-4 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  <ShieldCheck size={14} className="text-emerald-300" /> Verified Protocols
+               </div>
+            </div>
+          </div>
+
+          {/* Smart Notifications (Mobile List) */}
+          <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8">
+            <div className="flex items-center justify-between mb-8">
+               <h2 className="text-xl font-black tracking-tighter flex items-center gap-3">
+                <Bell className="text-red-500" /> Dispatch Alerts
+               </h2>
+               <span className="bg-red-50 text-red-600 text-[10px] font-black px-2 py-1 rounded-md">{(displayNotifications || []).length}</span>
+            </div>
+            <div className="space-y-4">
+              {displayNotifications.map((n, i) => {
+                const IconComp = iconMap[n.icon] || Activity;
+                return (
+                  <div key={i} className="p-5 bg-slate-50/50 rounded-2xl border border-slate-100 flex gap-5 items-start hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all cursor-pointer group">
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-sky-600 group-hover:scale-110 transition-transform shrink-0 border border-slate-100">
+                      <IconComp size={22} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-800 leading-[1.3] mb-1">{n.message}</p>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.15em]">{n.time}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Medical Report Vault (Mobile File System UI) */}
+          <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black tracking-tighter flex items-center gap-3">
+                <FileText className="text-indigo-600" /> Medical Vault
+              </h3>
+            </div>
+            
+            <div className="space-y-4">
+              {(hubData?.reports || []).length > 0 ? (
+                hubData.reports.map((report, i) => (
+                  <div key={i} className="group p-5 bg-slate-50 rounded-3xl border border-slate-100 hover:bg-white hover:border-sky-300 hover:shadow-xl transition-all cursor-pointer">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="font-black text-slate-900 text-sm leading-none mb-1">{report.type}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(report.uploadDate).toLocaleDateString()}</p>
+                      </div>
+                      <span className="text-[8px] bg-sky-50 px-2 py-1 rounded-md font-black uppercase text-sky-600 border border-sky-100 italic">AI Analyzed</span>
+                    </div>
+                    <div className="p-3 bg-white rounded-xl border border-slate-50 italic text-[11px] text-slate-600 leading-relaxed font-medium line-clamp-3">
+                      "{report.aiSummary}"
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                   <p className="text-xs font-black text-slate-300 uppercase tracking-widest">No reports archived</p>
+                </div>
+              )}
+
+              <div className="relative mt-4">
+                <input 
+                  type="file" 
+                  id="report-upload" 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                />
+                <label 
+                  htmlFor="report-upload"
+                  className={`w-full py-8 flex flex-col items-center justify-center border-2 border-dashed rounded-[2rem] transition-all cursor-pointer ${
+                    uploading ? 'bg-slate-50 border-slate-200' : 'bg-slate-50 border-sky-200 hover:bg-white hover:border-sky-500 hover:shadow-xl'
+                  }`}
+                >
+                  <div className={`p-4 rounded-2xl bg-white shadow-sm mb-4 text-sky-500 ${uploading ? 'animate-bounce' : ''}`}>
+                     <Upload size={32} />
+                  </div>
+                  <span className="text-sm font-black tracking-tighter text-slate-900">
+                    {uploading ? 'Processing OCR Clinical Data...' : 'Ingest Clinical Report'}
+                  </span>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">PDF • JPG • PNG SUPPORTED</p>
+                </label>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 w-full px-6 max-w-lg">
+        <button 
+          onClick={() => (window.navigate || routerNavigate)('/triage')}
+          className="w-full h-16 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-2xl hover:bg-black transition-all active:scale-95 group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+             <Plus size={20} />
+          </div>
+          New Clinical Diagnosis
+        </button>
+      </div>
+
+    </div>
+  );
+};
+
+export default HealthHub;

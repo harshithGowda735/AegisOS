@@ -20,7 +20,13 @@ const SymptomPage = () => {
     e.preventDefault();
     if (!input.trim()) return;
     const success = await processSymptoms(input);
-    if (success) navigate('/results');
+    if (success) {
+      if (useAppStore.getState().isAutonomouslyBooked) {
+        navigate('/booking');
+      } else {
+        navigate('/results');
+      }
+    }
   };
 
   return (

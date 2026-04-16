@@ -1,41 +1,188 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const axios = require('axios');
 require('dotenv').config();
 
 const { OpenAI } = require('openai');
 
+// Models
 const Patient = require('./models/Patient');
 const Booking = require('./models/Booking');
 const Doctor = require('./models/Doctor');
+const Hospital = require('./models/Hospital');
+const Ambulance = require('./models/Ambulance');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
 
-// MongoDB Connection
+// ── DB Connection ──────────────────────────────────────────────
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aegisos';
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB Atlas/Local'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+  .then(() => {
+    console.log('✅ Connected to MongoDB');
+    seedBangaloreData(); // Seed on first run
+  })
+  .catch(err => console.error('❌ MongoDB Error:', err));
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
 
-// Mock Data Source (Hospitals stay hardcoded or move to DB later)
-const hospitals = [
-  { id: '1', name: 'City General Hospital', distance: '12 mins', waitTime: '15 mins', rating: 4.8, beds: 42, doctorsAvailable: 8, coordinates: { lat: 12.9716, lng: 77.5946 }, tags: ['Emergency', 'General'] },
-  { id: '2', name: 'Metro Health Center', distance: '20 mins', waitTime: '5 mins', rating: 4.5, beds: 15, doctorsAvailable: 3, coordinates: { lat: 12.9352, lng: 77.6245 }, tags: ['Diabetes', 'Endocrinology'] },
-  { id: '3', name: 'Westside Clinic', distance: '30 mins', waitTime: '45 mins', rating: 4.2, beds: 5, doctorsAvailable: 1, coordinates: { lat: 12.9801, lng: 77.5323 }, tags: ['Pediatrics', 'General'] }
-];
+// Routes
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/user', userRoutes);
 
-// Health check
-app.get('/', (req, res) => res.send('AegisOS Backend Persistent Layer Active.'));
+// ── Haversine Distance (km) ────────────────────────────────────
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-// 🧾 New: Create Patient Profile (Onboarding)
+// ── Seed Bangalore Hospital Data ───────────────────────────────
+async function seedBangaloreData() {
+  const count = await Hospital.countDocuments();
+  if (count > 0) return; // Already seeded
+
+  const bangaloreHospitals = [
+    {
+      name: 'Manipal Hospital',
+      address: 'Old Airport Road, Kodihalli, Bangalore',
+      coordinates: { lat: 12.9600, lng: 77.6416 },
+      beds: [
+        { type: 'General', total: 120, available: 45 },
+        { type: 'ICU', total: 20, available: 6 },
+        { type: 'Emergency', total: 30, available: 12 },
+        { type: 'Ventilator', total: 10, available: 3 },
+      ],
+      doctorsAvailable: 12, totalDoctors: 20, crowdScore: 55,
+      rating: 4.8, capacity: 80, tags: ['Emergency', 'ICU', 'Cardiology', 'Neuro'],
+    },
+    {
+      name: 'Apollo Hospitals',
+      address: 'Bannerghatta Road, Bangalore',
+      coordinates: { lat: 12.8959, lng: 77.5979 },
+      beds: [
+        { type: 'General', total: 200, available: 85 },
+        { type: 'ICU', total: 35, available: 10 },
+        { type: 'Emergency', total: 40, available: 18 },
+        { type: 'Ventilator', total: 15, available: 7 },
+      ],
+      doctorsAvailable: 18, totalDoctors: 30, crowdScore: 40,
+      rating: 4.9, capacity: 120, tags: ['Emergency', 'ICU', 'Oncology', 'Orthopedics'],
+    },
+    {
+      name: 'Fortis Hospital',
+      address: 'Cunningham Road, Bangalore',
+      coordinates: { lat: 12.9866, lng: 77.5956 },
+      beds: [
+        { type: 'General', total: 150, available: 30 },
+        { type: 'ICU', total: 25, available: 2 },
+        { type: 'Emergency', total: 25, available: 5 },
+        { type: 'Ventilator', total: 8, available: 0 },
+      ],
+      doctorsAvailable: 8, totalDoctors: 18, crowdScore: 78,
+      rating: 4.6, capacity: 90, tags: ['Cardiology', 'Neuro', 'General'],
+    },
+    {
+      name: 'Sakra World Hospital',
+      address: 'Marathahalli, Bangalore',
+      coordinates: { lat: 12.9247, lng: 77.6796 },
+      beds: [
+        { type: 'General', total: 100, available: 60 },
+        { type: 'ICU', total: 18, available: 8 },
+        { type: 'Emergency', total: 20, available: 14 },
+        { type: 'Ventilator', total: 6, available: 4 },
+      ],
+      doctorsAvailable: 10, totalDoctors: 16, crowdScore: 30,
+      rating: 4.7, capacity: 70, tags: ['Emergency', 'Orthopedics', 'Pediatrics'],
+    },
+    {
+      name: 'Narayana Health City',
+      address: 'Bommasandra, Bangalore',
+      coordinates: { lat: 12.8105, lng: 77.6724 },
+      beds: [
+        { type: 'General', total: 300, available: 110 },
+        { type: 'ICU', total: 50, available: 22 },
+        { type: 'Emergency', total: 60, available: 35 },
+        { type: 'Ventilator', total: 20, available: 10 },
+      ],
+      doctorsAvailable: 22, totalDoctors: 40, crowdScore: 45,
+      rating: 4.9, capacity: 200, tags: ['Cardiac', 'Emergency', 'Transplant', 'ICU'],
+    },
+    {
+      name: 'Aster CMI Hospital',
+      address: 'Hebbal, Bangalore',
+      coordinates: { lat: 13.0474, lng: 77.5970 },
+      beds: [
+        { type: 'General', total: 160, available: 70 },
+        { type: 'ICU', total: 28, available: 9 },
+        { type: 'Emergency', total: 35, available: 20 },
+        { type: 'Ventilator', total: 12, available: 5 },
+      ],
+      doctorsAvailable: 14, totalDoctors: 24, crowdScore: 35,
+      rating: 4.7, capacity: 100, tags: ['Emergency', 'General', 'Maternity', 'Pediatrics'],
+    },
+  ];
+
+  await Hospital.insertMany(bangaloreHospitals);
+  console.log('🏥 Seeded 6 Bangalore hospital nodes.');
+
+  // Seed ambulances near Bangalore city center
+  const ambulances = [
+    { vehicleId: 'AG-AMB-01', location: { lat: 12.9716, lng: 77.5946 }, status: 'Available' },
+    { vehicleId: 'AG-AMB-02', location: { lat: 12.9352, lng: 77.6245 }, status: 'Available' },
+    { vehicleId: 'AG-AMB-03', location: { lat: 12.9500, lng: 77.5800 }, status: 'Available' },
+    { vehicleId: 'AG-AMB-04', location: { lat: 12.9800, lng: 77.6100 }, status: 'Available' },
+  ];
+  await Ambulance.insertMany(ambulances).catch(() => {}); // Ignore duplicate key on re-run
+  console.log('🚑 Seeded 4 ambulance units.');
+}
+
+// ── AI Engine Crowd Fetch ──────────────────────────────────────
+async function fetchCrowdFromAI() {
+  try {
+    const res = await axios.get(`${AI_ENGINE_URL}/crowd`, { timeout: 2000 });
+    return res.data.crowd_count || 0;
+  } catch {
+    return Math.floor(Math.random() * 20) + 2; // Fallback random
+  }
+}
+
+// ── Background: Update crowd scores every 10s ───────────────────
+setInterval(async () => {
+  try {
+    const crowdCount = await fetchCrowdFromAI();
+    const hospitals = await Hospital.find({ isActive: true });
+    for (const h of hospitals) {
+      // Simulate per-hospital variation based on global camera count
+      const variation = Math.floor(Math.random() * 20) - 10;
+      h.crowdCount = Math.max(0, crowdCount + variation);
+      h.crowdScore = Math.min(100, Math.round((h.crowdCount / h.capacity) * 100));
+      h.lastUpdated = new Date();
+      await h.save();
+    }
+  } catch (e) {
+    // Silent fail — don't crash the server
+  }
+}, 10000);
+
+// ═══════════════════════════════════════════════════════════════
+// ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+app.get('/', (req, res) => res.send('AegisOS Backend v2.0 — Proximity + Crowd Intelligence Active'));
+
+// ── Patients ──────────────────────────────────────────────────
 app.post('/api/patients', async (req, res) => {
   try {
     const { age, gender, medicalHistory } = req.body;
@@ -47,176 +194,292 @@ app.post('/api/patients', async (req, res) => {
   }
 });
 
-// GET all hospitals
-app.get('/api/hospitals', (req, res) => res.json(hospitals));
+// ── Get All Hospitals (Live from DB) ──────────────────────────
+app.get('/api/hospitals', async (req, res) => {
+  try {
+    const hospitals = await Hospital.find({ isActive: true });
+    res.json(hospitals);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-// 🧠 Advanced Analyze Symptoms (AI-Powered)
+// ── AI Symptom Analysis ───────────────────────────────────────
 app.post('/api/analyze/symptoms', async (req, res) => {
   try {
     const { symptoms, patientId } = req.body;
     let patient = null;
-    if (patientId) {
-      patient = await Patient.findById(patientId);
-    }
+    if (patientId) patient = await Patient.findById(patientId);
 
     let severity = 'Low';
     let recommendation = '';
 
-    // Try AI analysis if API key is configured
     if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-api-key-here') {
       try {
-        const patientContext = patient 
-          ? `Patient age: ${patient.age}, gender: ${patient.gender}, medical history: ${patient.medicalHistory.join(', ')}` 
+        const patientContext = patient
+          ? `Patient age: ${patient.age}, gender: ${patient.gender}, medical history: ${patient.medicalHistory.join(', ')}`
           : 'Patient profile not available';
 
-        const prompt = `You are a medical triage AI. Analyze these symptoms and respond with ONLY a JSON object in this exact format:
-{
-  "severity": "Low" or "Moderate" or "High",
-  "recommendedAction": "Appointment" or "Fast-track" or "Emergency",
-  "reasoning": "Brief 1-line explanation"
-}
-
-Patient context: ${patientContext}
-Symptoms: ${symptoms.join(', ')}`;
-
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" }
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: `You are a medical triage AI. Analyze these symptoms and respond with ONLY a JSON object:\n{"severity":"Low"|"Moderate"|"High","recommendedAction":"Appointment"|"Fast-track"|"Emergency","reasoning":"1-line explanation"}\n\nPatient: ${patientContext}\nSymptoms: ${symptoms.join(', ')}`
+          }],
+          response_format: { type: 'json_object' }
         });
 
         const result = JSON.parse(completion.choices[0].message.content);
         severity = result.severity || 'Moderate';
         recommendation = result.recommendedAction || 'Appointment';
-        
-        // Update patient record with AI analysis
-        if (patient) {
-          patient.symptoms = symptoms;
-          patient.severity = severity;
-          await patient.save();
-        }
-
-        res.json({ severity, recommendation, aiAnalyzed: true });
-        return;
+        if (patient) { patient.symptoms = symptoms; patient.severity = severity; await patient.save(); }
+        return res.json({ severity, recommendation, aiAnalyzed: true });
       } catch (aiError) {
-        console.log('AI analysis failed, falling back to rules:', aiError.message);
+        console.log('AI fallback:', aiError.message);
       }
     }
 
-    // Fallback to rule-based analysis
-    const highPriorityKeywords = ['chest pain', 'shortness of breath', 'severe bleeding', 'unconscious', 'difficulty breathing', 'heart', 'stroke'];
-    const moderateKeywords = ['headache', 'fever', 'nausea', 'vomiting', 'vision', 'abdominal', 'pain'];
-    
-    const hasHigh = symptoms.some(s => highPriorityKeywords.some(kw => s.toLowerCase().includes(kw)));
-    const hasModerate = symptoms.some(s => moderateKeywords.some(kw => s.toLowerCase().includes(kw)));
-    
-    const isHighRisk = patient && (patient.age > 65 || patient.medicalHistory.includes('Heart Disease') || patient.medicalHistory.includes('Diabetes'));
+    // Rule-based fallback
+    const highKW  = ['chest pain', 'shortness of breath', 'severe bleeding', 'unconscious', 'difficulty breathing', 'heart', 'stroke', 'seizure'];
+    const modKW   = ['headache', 'fever', 'nausea', 'vomiting', 'vision', 'abdominal', 'pain', 'dizziness'];
+    const hasHigh = symptoms.some(s => highKW.some(kw => s.toLowerCase().includes(kw)));
+    const hasMod  = symptoms.some(s => modKW.some(kw => s.toLowerCase().includes(kw)));
+    const isRisk  = patient && (patient.age > 65 || ['Heart Disease', 'Diabetes'].some(h => patient.medicalHistory.includes(h)));
 
-    if (hasHigh || (hasModerate && isHighRisk)) {
-      severity = 'High';
-      recommendation = 'Emergency';
-    } else if (hasModerate || isHighRisk) {
-      severity = 'Moderate';
-      recommendation = 'Fast-track';
-    } else {
-      severity = 'Low';
-      recommendation = 'Appointment';
-    }
-    
-    if (patient) {
-      patient.symptoms = symptoms;
-      patient.severity = severity;
-      await patient.save();
-    }
-    
+    if (hasHigh || (hasMod && isRisk)) { severity = 'High';     recommendation = 'Emergency'; }
+    else if (hasMod || isRisk)         { severity = 'Moderate'; recommendation = 'Fast-track'; }
+    else                               { severity = 'Low';      recommendation = 'Appointment'; }
+
+    if (patient) { patient.symptoms = symptoms; patient.severity = severity; await patient.save(); }
     res.json({ severity, recommendation, aiAnalyzed: false });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// 🏥 Hospital Decision (Prioritizing by History)
+// ── Decision Engine ───────────────────────────────────────────
 app.post('/api/hospitals/decision', async (req, res) => {
   try {
-    const { symptoms, severity, patientId } = req.body;
-    let patient = null;
-    if (patientId) {
-      patient = await Patient.findById(patientId);
-    }
+    const { symptoms, severity, patientId, userLocation } = req.body;
 
-    let filteredHospitals = [...hospitals];
-    
-    // If patient has specific history, prioritize hospitals with matching tags
-    if (patient && patient.medicalHistory.length > 0) {
-      filteredHospitals.sort((a, b) => {
-        const aMatches = a.tags.filter(tag => patient.medicalHistory.includes(tag)).length;
-        const bMatches = b.tags.filter(tag => patient.medicalHistory.includes(tag)).length;
-        return bMatches - aMatches;
-      });
-    }
+    // Fetch live crowd from AI engine
+    const liveCrowd = await fetchCrowdFromAI();
+
+    let hospitals = await Hospital.find({ isActive: true });
+
+    // Augment with distance and crowd-aware scoring
+    let scored = hospitals.map(h => {
+      const totalAvail = h.beds.reduce((s, b) => s + b.available, 0);
+      const dist = userLocation
+        ? calculateDistance(userLocation.lat, userLocation.lng, h.coordinates.lat, h.coordinates.lng)
+        : 999;
+
+      // Crowd score variation per hospital
+      const crowdCount = Math.max(0, liveCrowd + Math.floor(Math.random() * 10) - 5);
+      const crowdScore = Math.min(100, Math.round((crowdCount / h.capacity) * 100));
+
+      // ── Decision Logic ──────────────────────────────────
+      // Reject if no beds or no doctors
+      if (totalAvail === 0) return null;
+      if (h.doctorsAvailable === 0) return null;
+      // Reject if crowd + bookings > capacity
+      if (crowdScore >= 90) return null;
+
+      // Priority score (lower = better)
+      const score = dist * 0.5 + crowdScore * 0.3 + (100 - totalAvail) * 0.2;
+
+      const baseWait = Math.round((crowdScore / 10) * 5 + 5);
+
+      return {
+        id: h._id.toString(),
+        name: h.name,
+        address: h.address,
+        coordinates: h.coordinates,
+        beds: h.beds,
+        bedsAvailable: totalAvail,
+        doctorsAvailable: h.doctorsAvailable,
+        crowdCount,
+        crowdScore,
+        distance: dist < 999 ? `${dist.toFixed(1)} km` : 'Unknown',
+        distanceValue: dist,
+        waitTime: `${baseWait} mins`,
+        travelTime: dist < 999 ? `${Math.round(dist * 3)} mins` : '—',
+        rating: h.rating,
+        tags: h.tags,
+        score,
+        // Status for UI colors
+        status: crowdScore >= 75 ? 'Limited' : totalAvail > 20 ? 'Available' : 'Limited',
+      };
+    }).filter(Boolean);
+
+    // Sort by composite score (proximity + crowd + beds)
+    scored.sort((a, b) => a.score - b.score);
 
     res.json({
-      hospitals: filteredHospitals,
-      bestHospital: filteredHospitals[0]
+      hospitals: scored,
+      bestHospital: scored[0] || null,
+      crowdSource: 'ai_engine',
     });
   } catch (error) {
+    console.error('Decision error:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// 📝 Persistent Booking
+// ── Book Appointment + Ambulance Dispatch ─────────────────────
 app.post('/api/hospitals/book', async (req, res) => {
   try {
-    const { hospitalId, hospitalName, name, time, patientId } = req.body;
+    const { hospitalId, hospitalName, name, time, patientId, severity, userLocation } = req.body;
     const bookingId = `AJS-${Math.floor(Math.random() * 90000) + 10000}`;
-    
+
     const booking = new Booking({
       patientId,
       hospitalId,
       hospitalName,
-      patientName: name,
-      appointmentTime: time,
-      bookingId
+      patientName: name || 'Patient',
+      appointmentTime: time || new Date().toISOString(),
+      bookingId,
     });
-    
     await booking.save();
-    res.status(201).json({ success: true, data: booking });
+
+    // Decrement bed availability
+    await Hospital.findByIdAndUpdate(hospitalId, {
+      $inc: { 'beds.$[gen].available': -1 },
+    }, {
+      arrayFilters: [{ 'gen.type': 'General' }],
+    }).catch(() => {});
+
+    let ambulanceAssigned = null;
+
+    // ── Auto-dispatch ambulance for HIGH severity ──────────
+    if (severity === 'High' && userLocation) {
+      const availableAmbulances = await Ambulance.find({ status: 'Available' });
+      if (availableAmbulances.length > 0) {
+        const nearest = availableAmbulances.reduce((best, amb) => {
+          const d = calculateDistance(userLocation.lat, userLocation.lng, amb.location.lat, amb.location.lng);
+          return d < best.dist ? { amb, dist: d } : best;
+        }, { amb: availableAmbulances[0], dist: Infinity });
+
+        await Ambulance.findByIdAndUpdate(nearest.amb._id, {
+          status: 'Dispatched',
+          assignedBookingId: bookingId,
+          assignedHospitalId: hospitalId,
+          lastUpdated: new Date(),
+        });
+
+        const etaMins = Math.round(nearest.dist * 3 + 3);
+        ambulanceAssigned = {
+          vehicleId: nearest.amb.vehicleId,
+          etaMinutes: etaMins,
+          distanceKm: nearest.dist.toFixed(1),
+        };
+      }
+    }
+
+    // ── Update Patient Record in Registry ──────────
+    if (patientId) {
+      await Patient.findByIdAndUpdate(patientId, {
+        severity: severity || 'Moderate',
+        $push: { medicalHistory: `Visited ${hospitalName} (${new Date().toLocaleDateString()})` }
+      }).catch(() => {});
+    }
+
+    res.status(201).json({
+      success: true,
+      data: booking,
+      ambulanceAssigned,
+    });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-// 📊 Admin Stats (DB Aggregation)
-app.get('/api/admin/stats', async (req, res) => {
-  try {
-    const totalPatients = await Patient.countDocuments();
-    const highSeverityCount = await Patient.countDocuments({ severity: 'High' });
-    const moderateSeverityCount = await Patient.countDocuments({ severity: 'Moderate' });
-    const totalBookings = await Booking.countDocuments();
-    
-    // Revenue Calculation (Mock: 500 per booking)
-    const totalRevenue = totalBookings * 500;
-    
-    // Simulate bed availability based on total bookings
-    const totalBeds = 120;
-    const occupiedBeds = totalBookings > totalBeds ? totalBeds : totalBookings;
-    const availableBeds = totalBeds - occupiedBeds;
+// ══════════════════════════════════════════
+// ADMIN: BED MANAGEMENT APIs
+// ══════════════════════════════════════════
 
-    res.json({
-      totalPatients,
-      highSeverityCount,
-      moderateSeverityCount,
-      totalBookings,
-      totalRevenue,
-      availableBeds,
-      occupancyRate: Math.round((occupiedBeds / totalBeds) * 100)
-    });
+// Get hospital with beds
+app.get('/api/admin/hospitals', async (req, res) => {
+  try {
+    const hospitals = await Hospital.find({ isActive: true });
+    res.json(hospitals);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// 👨‍⚕️ Doctor Management
+// Update a bed type availability
+app.patch('/api/admin/hospitals/:id/beds', async (req, res) => {
+  try {
+    const { type, available, total } = req.body;
+    const hospital = await Hospital.findById(req.params.id);
+    if (!hospital) return res.status(404).json({ message: 'Hospital not found' });
+
+    const bed = hospital.beds.find(b => b.type === type);
+    if (bed) {
+      if (available !== undefined) bed.available = available;
+      if (total !== undefined) bed.total = total;
+    }
+    hospital.lastUpdated = new Date();
+    await hospital.save();
+    res.json(hospital);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Add a new bed type
+app.post('/api/admin/hospitals/:id/beds', async (req, res) => {
+  try {
+    const { type, total, available } = req.body;
+    const hospital = await Hospital.findById(req.params.id);
+    if (!hospital) return res.status(404).json({ message: 'Hospital not found' });
+
+    const exists = hospital.beds.find(b => b.type === type);
+    if (exists) return res.status(400).json({ message: 'Bed type already exists' });
+
+    hospital.beds.push({ type, total: total || 0, available: available || 0 });
+    hospital.lastUpdated = new Date();
+    await hospital.save();
+    res.status(201).json(hospital);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Delete a bed type
+app.delete('/api/admin/hospitals/:id/beds/:type', async (req, res) => {
+  try {
+    const hospital = await Hospital.findById(req.params.id);
+    if (!hospital) return res.status(404).json({ message: 'Hospital not found' });
+
+    hospital.beds = hospital.beds.filter(b => b.type !== req.params.type);
+    hospital.lastUpdated = new Date();
+    await hospital.save();
+    res.json({ message: `Bed type '${req.params.type}' removed`, hospital });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Update crowd score manually (for demo/YOLO simulation)
+app.patch('/api/admin/hospitals/:id/crowd', async (req, res) => {
+  try {
+    const { crowdScore, crowdCount } = req.body;
+    const hospital = await Hospital.findByIdAndUpdate(req.params.id,
+      { crowdScore, crowdCount, lastUpdated: new Date() },
+      { new: true }
+    );
+    res.json(hospital);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// ══════════════════════════════════════════
+// ADMIN: DOCTORS, STATS, BOOKINGS
+// ══════════════════════════════════════════
+
 app.post('/api/admin/doctors', async (req, res) => {
   try {
     const doctor = new Doctor(req.body);
@@ -236,17 +499,51 @@ app.get('/api/admin/doctors', async (req, res) => {
   }
 });
 
-// 📜 Admin Recent Activity
-app.get('/api/admin/bookings', async (req, res) => {
+app.get('/api/admin/stats', async (req, res) => {
   try {
-    const recentBookings = await Booking.find()
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .populate('patientId');
-    res.json(recentBookings);
+    const [totalPatients, highSeverity, totalBookings, hospitals] = await Promise.all([
+      Patient.countDocuments(),
+      Patient.countDocuments({ severity: 'High' }),
+      Booking.countDocuments(),
+      Hospital.find({ isActive: true }),
+    ]);
+
+    const totalRevenue = totalBookings * 2999;
+    const totalBeds = hospitals.reduce((s, h) => s + h.beds.reduce((ss, b) => ss + b.total, 0), 0);
+    const availBeds = hospitals.reduce((s, h) => s + h.beds.reduce((ss, b) => ss + b.available, 0), 0);
+
+    res.json({
+      totalPatients,
+      highSeverityCount: highSeverity,
+      moderateSeverityCount: await Patient.countDocuments({ severity: 'Moderate' }),
+      totalBookings,
+      totalRevenue,
+      availableBeds: availBeds,
+      totalBeds,
+      occupancyRate: totalBeds ? Math.round(((totalBeds - availBeds) / totalBeds) * 100) : 0,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-app.listen(PORT, () => console.log(`AegisOS Backend running on http://localhost:${PORT}`));
+app.get('/api/admin/bookings', async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 }).limit(10);
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ── Ambulance status ──────────────────────────────────────────
+app.get('/api/ambulances', async (req, res) => {
+  try {
+    const ambulances = await Ambulance.find();
+    res.json(ambulances);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.listen(PORT, () => console.log(`🚀 AegisOS Backend running on http://localhost:${PORT}`));
