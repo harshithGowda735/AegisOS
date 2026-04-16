@@ -4,11 +4,12 @@ import {
   Users, Stethoscope, CheckCircle2, Clock, RefreshCw,
   Activity, UserCheck, Plus, Calendar, MoreHorizontal,
   Search, Filter, ArrowUpRight, Heart, BedDouble, Trash2,
-  Wifi, AlertTriangle, PenLine, ShieldCheck
+  Wifi, AlertTriangle, PenLine, ShieldCheck, Navigation
 } from 'lucide-react';
 import Skeleton from '../components/ui/Skeleton';
 import Button from '../components/ui/Button';
 import CameraNode from '../components/dashboard/CameraNode';
+import GoogleMap from '../components/ui/GoogleMap';
 import { hospitalService } from '../services/hospitalService';
 
 const HospitalDashboard = () => {
@@ -33,12 +34,13 @@ const HospitalDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Set first hospital as default when loaded
+  // Keep selectedHospital in sync with latest adminHospitals data
   useEffect(() => {
-    if (adminHospitals?.length > 0 && !selectedHospital) {
-      setSelectedHospital(adminHospitals[0]);
+    if (selectedHospital && adminHospitals?.length) {
+      const updated = adminHospitals.find(h => h._id === selectedHospital._id);
+      if (updated) setSelectedHospital(updated);
     }
-  }, [adminHospitals]);
+  }, [adminHospitals, selectedHospital]);
 
   const handleAddDoctor = async (e) => {
     e.preventDefault();
@@ -405,9 +407,11 @@ const HospitalDashboard = () => {
                  <div className="lg:col-span-2">
                     <CameraNode 
                        hospitalId={selectedHospital._id} 
+                       waitingListCount={recentBookings.filter(b => b.hospitalId === selectedHospital._id).length}
                        onUpdate={async (count) => {
                          try {
                            await hospitalService.syncFrameMetadata(selectedHospital._id, count);
+                           fetchAdminData(); // Refresh immediately
                          } catch (err) {
                            console.warn('Frame sync failed:', err.message);
                          }
@@ -431,32 +435,65 @@ const HospitalDashboard = () => {
                              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                                 <div className={`h-full transition-all duration-1000 ${selectedHospital.crowdScore > 70 ? 'bg-rose-500' : 'bg-sky-500'}`} style={{ width: `${selectedHospital.crowdScore}%` }}></div>
                              </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 pt-4">
-                             <div className="bg-slate-50 p-6 rounded-3xl">
-                                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">OpenCV Count</p>
-                                <p className="text-2xl font-black text-sky-500">
-                                   {selectedHospital.crowdCount || 0}
-                                </p>
-                             </div>
-                             <div className="bg-slate-50 p-6 rounded-3xl">
-                                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Wait List</p>
-                                <p className="text-2xl font-black text-slate-900">
-                                   {recentBookings.filter(b => b.hospitalId === selectedHospital._id).length}
-                                </p>
+                             <div className="grid grid-cols-2 gap-4 pt-4">
+                                <div className="bg-slate-50 p-6 rounded-3xl">
+                                   <p className="text-[10px] font-black uppercase text-slate-400 mb-2">OpenCV Count</p>
+                                   <p className="text-2xl font-black text-slate-900">{selectedHospital.crowdCount || 0}</p>
+                                </div>
+                                <div className="bg-slate-50 p-6 rounded-3xl">
+                                   <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Wait List</p>
+                                   <p className="text-2xl font-black text-slate-900">{recentBookings.filter(b => b.hospitalId === selectedHospital._id).length}</p>
+                                </div>
                              </div>
                           </div>
 
                           <div className="grid grid-cols-1 gap-4">
-                             <div className="bg-slate-50 p-6 rounded-3xl">
-                                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Bed Stress</p>
-                                <p className="text-2xl font-black text-slate-900">
-                                   {Math.round((1 - (selectedHospital.beds.reduce((s,b) => s+b.available, 0) / (selectedHospital.capacity || 1))) * 100)}%
-                                </p>
+                             <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <div className="flex justify-between items-center mb-3">
+                                   <p className="text-[10px] font-black uppercase text-slate-400">Resource Availability</p>
+                                   <Activity className="text-sky-500" size={14} />
+                                </div>
+                                <div className="space-y-4">
+                                   <div className="flex justify-between items-center">
+                                      <span className="text-sm font-bold text-slate-600 flex items-center gap-2">
+                                         <BedDouble size={14} className="text-slate-400" />
+                                         Available Beds
+                                      </span>
+                                      <span className="text-lg font-black text-slate-900">
+                                         {selectedHospital.beds?.reduce((s, b) => s + b.available, 0) || 0}
+                                      </span>
+                                   </div>
+                                   <div className="flex justify-between items-center">
+                                      <span className="text-sm font-bold text-slate-600 flex items-center gap-2">
+                                         <UserCheck size={14} className="text-slate-400" />
+                                         Doctors on Duty
+                                      </span>
+                                      <span className="text-lg font-black text-slate-900">
+                                         {selectedHospital.doctorsAvailable || 0}
+                                      </span>
+                                   </div>
+                                </div>
                              </div>
-                        </div>
-                     </div>
+                          </div>
+
+                          {/* Real-time Map Integration */}
+                          <div className="pt-2">
+                             <p className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center gap-2">
+                                <Navigation size={12} className="text-sky-500" />
+                                Facility Coordinates
+                             </p>
+                             <div className="h-56">
+                                <GoogleMap 
+                                   center={selectedHospital.coordinates || { lat: 12.9716, lng: 77.5946 }} 
+                                   zoom={15}
+                                   markers={[{ 
+                                      position: selectedHospital.coordinates || { lat: 12.9716, lng: 77.5946 },
+                                      title: selectedHospital.name 
+                                   }]}
+                                />
+                             </div>
+                          </div>
+                       </div>
                     </div>
 
                     <div className="bg-sky-500 p-10 rounded-[2.5rem] text-white shadow-xl shadow-sky-500/20 relative overflow-hidden">

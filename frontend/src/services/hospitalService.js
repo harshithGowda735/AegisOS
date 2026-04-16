@@ -32,6 +32,14 @@ export const hospitalService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  analyzePrescription: (condition, file) => {
+    const formData = new FormData();
+    formData.append('prescription', file);
+    formData.append('condition', condition);
+    return api.post('/user/analyze-prescription', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   getHealthHubData: (patientId) => api.get(`/user/health-hub/${patientId}`),
   recalculateProtocol: (patientId) => api.post(`/user/health-hub/${patientId}/recalculate`),
   getAllPatients: () => api.get('/user/patients'),
@@ -40,7 +48,12 @@ export const hospitalService = {
 
   // AI Engine (IoT Nodes)
   getCrowdData: (hospitalId) => axios.get(`http://localhost:8000/crowd/${hospitalId}`),
-  syncFrameMetadata: (hospitalId, count) => axios.post(`http://localhost:8000/analyze-frame/${hospitalId}`, { count }),
+  syncFrameMetadata: async (hospitalId, count) => {
+    // Sync with FastAPI AI Engine (Crowd Intel)
+    await axios.post(`http://localhost:8000/analyze-frame/${hospitalId}`, { count }).catch(() => {});
+    // Sync with Main Node.js Backend (Dashboard State)
+    return api.patch(`/admin/hospitals/${hospitalId}/crowd`, { crowdCount: count, crowdScore: Math.min(100, Math.round(count * 2.5)) });
+  },
 
   // Ambulances
   getAmbulances: () => api.get('/ambulances'),

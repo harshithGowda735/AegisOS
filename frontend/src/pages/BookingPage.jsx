@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import Button from '../components/ui/Button';
+import GoogleMap from '../components/ui/GoogleMap';
 
 import {
   CheckCircle2, MapPin, Clock, Calendar,
@@ -10,7 +11,7 @@ import {
   Info, Activity, Sparkles, Siren, Navigation,
   BedDouble, UserCheck, AlertTriangle, Timer,
   FileText, ShieldAlert, ReceiptText, Landmark,
-  ChevronRight, Lock, Fingerprint
+  ChevronRight, Lock, Fingerprint, Hospital
 } from 'lucide-react';
 
 // --- Animation Variants ---
@@ -134,24 +135,55 @@ const BookingPage = () => {
           </div>
 
           <div className="p-8 md:p-12">
-            {/* Original Dispatch Banner Logic */}
+            {/* 🛰️ Triple-Point GIS Telemetry Node */}
             {ambulanceDispatched && (
               <motion.div 
-                initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
-                className="bg-rose-50 border border-rose-100 rounded-3xl p-6 mb-10 flex items-center justify-between"
+                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
               >
-                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center shrink-0">
-                    <Siren size={24} className="text-white animate-bounce" />
+                {/* 1. Ambulance ↔ Patient */}
+                <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center text-white">
+                      <Siren size={20} className="animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-rose-400 mb-1">Ambulance to You</p>
+                      <p className="text-2xl font-black text-rose-600">{ambulanceDispatched.telemetry?.ambulanceToPatient || '—'} <span className="text-xs">km</span></p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-rose-900 font-bold uppercase text-xs tracking-widest mb-1">Ambulance On-Route</p>
-                    <p className="text-rose-700 text-sm font-medium">Unit <span className="font-bold">{ambulanceDispatched.vehicleId}</span> dispatched.</p>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold text-rose-300">ETA</p>
+                    <p className="text-sm font-black text-rose-500">{ambulanceDispatched.etaMinutes}m</p>
                   </div>
                 </div>
-                <div className="text-right">
-                   <p className="text-[10px] font-bold text-rose-400 uppercase">ETA</p>
-                   <p className="text-3xl font-black text-rose-600">{ambulanceDispatched.etaMinutes}m</p>
+
+                {/* 2. Ambulance ↔ Hospital (Truck Icon) */}
+                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
+                      <Navigation size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Ambulance to Hub</p>
+                      <p className="text-2xl font-black text-slate-900">{ambulanceDispatched.telemetry?.ambulanceToHospital || '—'} <span className="text-xs">km</span></p>
+                    </div>
+                  </div>
+                  <Activity size={16} className="text-sky-500 animate-pulse" />
+                </div>
+
+                {/* 3. Patient ↔ Hospital */}
+                <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                      <Hospital size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-indigo-400 mb-1">Your Route to Hub</p>
+                      <p className="text-2xl font-black text-indigo-900">{ambulanceDispatched.telemetry?.patientToHospital || '—'} <span className="text-xs">km</span></p>
+                    </div>
+                  </div>
+                  <ShieldCheck size={16} className="text-indigo-400" />
                 </div>
               </motion.div>
             )}
@@ -166,6 +198,13 @@ const BookingPage = () => {
                       <p className="font-bold text-lg text-slate-900">{bestHospital?.name}</p>
                       <p className="text-sm text-slate-500 font-medium">{bestHospital?.distance} from current location</p>
                     </div>
+                  </div>
+                  <div className="mt-4 h-48">
+                    <GoogleMap 
+                      center={bestHospital?.coordinates || { lat: 12.9716, lng: 77.5946 }} 
+                      zoom={15}
+                      markers={[{ position: bestHospital?.coordinates, title: bestHospital?.name }]}
+                    />
                   </div>
                 </div>
                 

@@ -8,13 +8,55 @@ import {
   Search, 
   Sparkles,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Mic,
+  MicOff,
+  Volume2
 } from 'lucide-react';
 
 const SymptomPage = () => {
   const { processSymptoms, isLoading, userProfile } = useAppStore();
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const navigate = useNavigate();
+
+  // 🎙️ Speech-to-Text Autonomous Logic
+  const startSpeechRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please use Chrome.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      // Auto-submit after voice input
+      handleVoiceSubmit(transcript);
+    };
+
+    recognition.start();
+  };
+
+  const handleVoiceSubmit = async (voiceInput) => {
+    if (!voiceInput.trim()) return;
+    const success = await processSymptoms(voiceInput);
+    if (success) {
+      if (useAppStore.getState().isAutonomouslyBooked) {
+        navigate('/booking');
+      } else {
+        navigate('/results');
+      }
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,12 +124,29 @@ const SymptomPage = () => {
               >
                 Analyze Symptoms
               </Button>
+
+              <button 
+                type="button"
+                onClick={startSpeechRecognition}
+                className={`w-full md:w-auto px-8 py-5 rounded-2xl font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3 border ${
+                  isListening 
+                    ? 'bg-rose-500 text-white border-rose-400 animate-pulse' 
+                    : 'bg-slate-50 text-slate-900 border-slate-100 hover:bg-slate-100'
+                }`}
+              >
+                {isListening ? (
+                  <> <MicOff size={18}/> Listening... </>
+                ) : (
+                  <> <Mic size={18}/> Voice Analysis </>
+                )}
+              </button>
+
               <button 
                 type="button"
                 onClick={() => navigate('/emergency')}
                 className="w-full md:w-auto px-10 py-5 bg-rose-50 text-rose-600 font-black rounded-2xl text-sm hover:bg-rose-100 transition-all border border-rose-100"
               >
-                Immediate Emergency
+                Emergency
               </button>
             </div>
           </form>

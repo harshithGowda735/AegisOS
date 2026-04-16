@@ -85,7 +85,13 @@ export const useAppStore = create((set, get) => ({
       const severity = analysisData?.severity || 'Moderate';
       const recommendation = analysisData?.recommendation || 'Appointment';
       const hospitals = decisionData?.hospitals || [];
-      const bestHospital = decisionData?.bestHospital || hospitals[0] || null;
+    // Filter hospitals with available beds and doctors
+    const viableHospitals = hospitals.filter(h => {
+      const hasBeds = (h.beds?.reduce((sum, b) => sum + (b.available || 0), 0) || 0) > 0;
+      const hasDoctors = (h.doctorsAvailable || h.doctors?.length || 0) > 0;
+      return hasBeds && hasDoctors;
+    });
+      const bestHospital = decisionData?.bestHospital || viableHospitals[0] || null;
 
       set({
         severity,
@@ -250,6 +256,8 @@ export const useAppStore = create((set, get) => ({
        return false;
     }
   },
+
+  selectHospital: (hospital) => set({ bestHospital: hospital }),
 
   resetStore: () => set({
     symptoms: [], severity: '', triageData: null,

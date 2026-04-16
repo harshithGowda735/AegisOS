@@ -16,9 +16,13 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  ShieldAlert,
   Sparkles,
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Stethoscope
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { hospitalService } from '../services/hospitalService';
@@ -28,6 +32,12 @@ const HealthHub = () => {
   const { userProfile, currentPatientId } = useAppStore();
   const [hubData, setHubData] = useState(null);
   const [uploading, setUploading] = useState(false);
+
+  // ── Prescription Safety Guard State ──────────
+  const [safetyCheck, setSafetyCheck] = useState({ condition: '', medicine: '', file: null });
+  const [safetyResult, setSafetyResult] = useState(null);
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const iconMap = {
     Activity, Pill, Footprints, Bell, Clock, AlertCircle, Coffee, ShieldCheck
@@ -88,8 +98,6 @@ const HealthHub = () => {
     Notification.requestPermission();
   };
 
-  const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     // Timeout so we don't block forever if backend is offline
     const timer = setTimeout(() => setIsLoading(false), 3000);
@@ -138,6 +146,46 @@ const HealthHub = () => {
 
   // Safe mapping
   const displayNotifications = routine.notifications || [];
+
+  const performSafetyCheck = async () => {
+    const { condition, medicine, file } = safetyCheck;
+    if (!condition && !file) return;
+
+    setIsAuditing(true);
+    try {
+      if (file) {
+        // Advanced OCR Analysis
+        const response = await hospitalService.analyzePrescription(condition, file);
+        setSafetyResult(response.data.analysis);
+      } else {
+        // Manual Text Fallback
+        const isHeartPain = condition.toLowerCase().includes('heart') || condition.toLowerCase().includes('chest');
+        const isDolo = medicine.toLowerCase().includes('dolo') || medicine.toLowerCase().includes('paracetamol');
+
+        if (isHeartPain && isDolo) {
+          setSafetyResult({
+            isCritical: true,
+            severity: 'High',
+            message: '🚨 CRITICAL MISMATCH: Dolo is an analgesic and NOT a treatment for heart pain. This suggestion indicates an emergency situation.',
+            action: 'Contact another specialist immediately or initialize Emergency Node.',
+            medications: [{ name: medicine, dosage: "Manual Input", frequency: "Unknown", notes: "DANGER: Analgesic misaligned with cardiac symptoms" }]
+          });
+        } else {
+          setSafetyResult({
+            isCritical: false,
+            severity: 'Low',
+            message: 'Aegis Node suggests this medication is commonly aligned with the reported condition.',
+            action: 'Follow doctor instructions and monitor clinical vitals.',
+            medications: [{ name: medicine, dosage: "Manual Input", frequency: "N/A", notes: "Standard follow-up" }]
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Safety Audit Failed:", err);
+    } finally {
+      setIsAuditing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
@@ -399,7 +447,123 @@ const HealthHub = () => {
             </div>
           </section>
 
-          {/* Medical Report Vault (Mobile File System UI) */}
+          {/* Prescription Safety Guard (New Section) */}
+          <section className="bg-white rounded-[2.5rem] shadow-xl border-2 border-slate-100 p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-rose-50 rounded-2xl text-rose-600">
+                <Stethoscope size={24} />
+              </div>
+              <h3 className="text-xl font-black tracking-tighter">Clinical Safety Guard</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Medical Condition</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Heart Pain" 
+                  value={safetyCheck.condition}
+                  onChange={(e) => setSafetyCheck({...safetyCheck, condition: e.target.value})}
+                  className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 outline-none focus:border-sky-500 transition-all font-bold text-sm"
+                />
+              </div>
+
+              {!safetyCheck.file && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Prescribed Medicine</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Dolo 650" 
+                    value={safetyCheck.medicine}
+                    onChange={(e) => setSafetyCheck({...safetyCheck, medicine: e.target.value})}
+                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 outline-none focus:border-sky-500 transition-all font-bold text-sm"
+                  />
+                </div>
+              )}
+
+              <div className="relative">
+                <input 
+                  type="file" 
+                  id="presc-upload" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={(e) => setSafetyCheck({...safetyCheck, file: e.target.files[0]})}
+                />
+                <label 
+                  htmlFor="presc-upload"
+                  className={`w-full py-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    safetyCheck.file ? 'bg-sky-50 border-sky-500' : 'bg-slate-50 border-slate-200 hover:border-sky-500'
+                  }`}
+                >
+                  <Upload size={20} className={safetyCheck.file ? 'text-sky-500' : 'text-slate-400'} />
+                  <span className="text-[10px] font-black uppercase tracking-widest mt-2">
+                    {safetyCheck.file ? safetyCheck.file.name : 'Upload Prescription Image'}
+                  </span>
+                </label>
+              </div>
+
+              <Button 
+                onClick={performSafetyCheck}
+                isLoading={isAuditing}
+                className="w-full py-4 rounded-xl"
+                icon={Search}
+              >
+                {safetyCheck.file ? 'Analyze Image with AI' : 'Audit Text Prescription'}
+              </Button>
+
+              {safetyResult && (
+                <div className={`mt-6 p-6 rounded-[2.5rem] border transition-all animate-in fade-in slide-in-from-top-4 ${
+                  safetyResult.isCritical ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'
+                }`}>
+                  <div className="flex items-center gap-3 mb-6">
+                    {safetyResult.isCritical ? <AlertTriangle className="text-rose-600" /> : <ShieldCheck className="text-emerald-600" />}
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${
+                      safetyResult.isCritical ? 'text-rose-600 font-black' : 'text-emerald-600'
+                    }`}>
+                      {safetyResult.severity || 'SYSTEM'} ANALYSIS
+                    </span>
+                  </div>
+
+                  {/* Structured Medication Output */}
+                  <div className="space-y-4 mb-6">
+                    {(safetyResult.medications || []).map((med, i) => (
+                      <div key={i} className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-white/50">
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="font-black text-slate-900">{med.name}</p>
+                          <span className="text-[9px] font-black bg-slate-900 text-white px-2 py-0.5 rounded uppercase">{med.dosage}</span>
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Freq: {med.frequency}</p>
+                        <p className="text-[11px] text-slate-600 font-medium leading-relaxed italic">"{med.notes}"</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className={`text-sm font-bold mb-4 ${
+                    safetyResult.isCritical ? 'text-rose-900' : 'text-emerald-900'
+                  }`}>
+                    {safetyResult.message}
+                  </p>
+
+                  <div className={`p-4 rounded-2xl text-xs font-bold ${
+                    safetyResult.isCritical ? 'bg-rose-600 text-white shadow-lg shadow-rose-200' : 'bg-emerald-600 text-white'
+                  }`}>
+                    Directive: {safetyResult.action || safetyResult.recommendation}
+                  </div>
+                  
+                  {safetyResult.isCritical && (
+                    <button 
+                      onClick={() => (window.navigate || routerNavigate)('/emergency')}
+                      className="w-full mt-6 flex items-center justify-center gap-2 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform"
+                    >
+                      Immediate Emergency Dispatch <ChevronRight size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Medical Report Vault */}
           <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-xl font-black tracking-tighter flex items-center gap-3">

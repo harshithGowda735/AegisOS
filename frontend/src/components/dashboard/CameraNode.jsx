@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Camera, CameraOff, Wifi, Activity, ShieldCheck, Users } from 'lucide-react';
 
-const CameraNode = ({ hospitalId, onUpdate }) => {
+const CameraNode = ({ hospitalId, onUpdate, waitingListCount = 0 }) => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [isActive, setIsActive] = useState(false);
@@ -10,19 +10,70 @@ const CameraNode = ({ hospitalId, onUpdate }) => {
   const [status, setStatus] = useState('Offline');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Simulate crowd detection every 3 seconds while active
+  const [boxes, setBoxes] = useState([]);
+
+  // Simulation of persistent targets (people) to avoid the "scanning printer" feel
   useEffect(() => {
     let interval;
     if (isActive) {
       interval = setInterval(() => {
-        // Simulate OpenCV person detection (Haar-Cascade / YOLO simulation)
-        const detectedCount = Math.floor(Math.random() * 18) + 3;
-        setCount(detectedCount);
-        if (onUpdate) onUpdate(detectedCount);
-      }, 3000);
+        // 1. Base traffic + waiting list count
+        const baseTraffic = Math.max(waitingListCount, 0) + Math.floor(Math.random() * 2) + 1; // Always at least 1 person
+        setCount(baseTraffic);
+        if (onUpdate) onUpdate(baseTraffic);
+
+        // 2. Generate persistent targets that move slightly
+        setBoxes(prev => {
+          // Keep some old boxes and move them, or add new ones
+          const existing = prev.slice(0, Math.min(prev.length, baseTraffic));
+          const updated = existing.map(b => {
+            const top = Math.min(90, Math.max(10, b.top + (Math.random() - 0.5) * 5));
+            const left = Math.min(90, Math.max(10, b.left + (Math.random() - 0.5) * 5));
+            return {
+              ...b,
+              top,
+              left,
+              confidence: 0.85 + Math.random() * 0.1,
+              // Face position relative to body
+              face: {
+                top: top + 2, 
+                left: left + 2,
+                width: b.width * 0.6,
+                height: b.height * 0.3
+              }
+            };
+          });
+
+          // Add new ones if needed
+          while (updated.length < baseTraffic) {
+             const top = Math.random() * 60 + 10;
+             const left = Math.random() * 70 + 5;
+             const width = 12 + Math.random() * 5;
+             const height = 25 + Math.random() * 10;
+             updated.push({
+               id: Math.random(),
+               top,
+               left,
+               width,
+               height,
+               confidence: 0.9 + Math.random() * 0.08,
+               face: {
+                 top: top + 2,
+                 left: left + 2,
+                 width: width * 0.6,
+                 height: height * 0.3
+               }
+             });
+          }
+          return updated;
+        });
+      }, 2000); // Update every 2s for better responsiveness
+    } else {
+      setBoxes([]);
+      setCount(0);
     }
     return () => clearInterval(interval);
-  }, [isActive, onUpdate]);
+  }, [isActive, onUpdate, waitingListCount]);
 
   // Cleanup camera on unmount
   useEffect(() => {
@@ -113,6 +164,46 @@ const CameraNode = ({ hospitalId, onUpdate }) => {
           className={`w-full h-full object-cover transition-opacity duration-500 ${isActive ? 'opacity-80' : 'opacity-0 absolute inset-0'}`}
         />
 
+        {/* Visual Detection Overlay */}
+        {isActive && (
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            {boxes.map(box => (
+              <React.Fragment key={box.id}>
+                {/* 👤 Body Tracking */}
+                <div 
+                  className="absolute border-2 border-sky-400/80 bg-sky-400/5 rounded-lg transition-all duration-300 ease-out"
+                  style={{
+                    top: `${box.top}%`,
+                    left: `${box.left}%`,
+                    width: `${box.width}%`,
+                    height: `${box.height}%`
+                  }}
+                >
+                  <div className="absolute -top-6 left-0 flex items-center gap-1.5 bg-sky-500/90 text-[7px] font-black text-white px-1.5 py-0.5 rounded uppercase tracking-tighter backdrop-blur-sm shadow-lg whitespace-nowrap">
+                     <div className="w-1 h-1 bg-white rounded-full animate-ping" />
+                     Human Node: {(box.confidence * 100).toFixed(1)}%
+                  </div>
+                </div>
+
+                {/* 🆔 Face Detection Sub-Node */}
+                <div 
+                  className="absolute border border-emerald-400/80 bg-emerald-400/10 rounded transition-all duration-300 ease-out z-30"
+                  style={{
+                    top: `${box.face.top}%`,
+                    left: `${box.face.left + box.width * 0.2}%`,
+                    width: `${box.face.width}%`,
+                    height: `${box.face.height}%`
+                  }}
+                >
+                  <div className="absolute -top-4 left-0 text-[5px] font-black text-emerald-400 uppercase tracking-widest whitespace-nowrap bg-slate-900/50 px-1 rounded">
+                     Face Locked
+                  </div>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+
         {/* Scan line animation - only shown when active */}
         {isActive && (
           <>
@@ -174,8 +265,10 @@ const CameraNode = ({ hospitalId, onUpdate }) => {
               <Users size={13} />
               <span className="text-[10px] font-black uppercase tracking-widest">People Count</span>
             </div>
-            <p className="text-4xl font-black text-white tracking-tighter">
-              {isActive ? count : '--'}
+            <p className={`text-4xl font-black text-white tracking-tighter transition-all duration-300 ${isActive ? 'scale-100 opacity-100' : 'scale-95 opacity-50'}`}>
+              <span key={count} className="inline-block animate-[pulse_0.5s_ease-in-out]">
+                {isActive ? count : '--'}
+              </span>
               <span className="text-xs text-slate-600 ml-2 font-bold uppercase tracking-normal">detected</span>
             </p>
           </div>

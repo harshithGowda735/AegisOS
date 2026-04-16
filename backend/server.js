@@ -364,6 +364,12 @@ app.post('/api/hospitals/book', async (req, res) => {
     });
     await booking.save();
 
+    // ── Pre-fetch Hospital for GIS Telemetry ────────
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
+       return res.status(404).json({ message: 'Deployment Target Not Found' });
+    }
+
     // Decrement bed availability & Increment Revenue
     await Hospital.findByIdAndUpdate(hospitalId, {
       $inc: { 
@@ -376,7 +382,7 @@ app.post('/api/hospitals/book', async (req, res) => {
 
     let ambulanceAssigned = null;
 
-    // ── Auto-dispatch ambulance for HIGH severity ──────────
+    // ── Triple-Point GIS Logic ────────────────────
     if (severity === 'High' && userLocation) {
       const availableAmbulances = await Ambulance.find({ status: 'Available' });
       if (availableAmbulances.length > 0) {
@@ -392,22 +398,32 @@ app.post('/api/hospitals/book', async (req, res) => {
           lastUpdated: new Date(),
         });
 
-        const etaMins = Math.round(nearest.dist * 3 + 3);
+        // Calculate GIS intersections
+        const distAmbulanceToPatient = nearest.dist;
+        const distAmbulanceToHospital = calculateDistance(nearest.amb.location.lat, nearest.amb.location.lng, hospital.coordinates.lat, hospital.coordinates.lng);
+        const distPatientToHospital = calculateDistance(userLocation.lat, userLocation.lng, hospital.coordinates.lat, hospital.coordinates.lng);
+
+        const etaMins = Math.round(distAmbulanceToPatient * 3 + 3);
+        
         ambulanceAssigned = {
           vehicleId: nearest.amb.vehicleId,
           etaMinutes: etaMins,
-          distanceKm: nearest.dist.toFixed(1),
+          telemetry: {
+             ambulanceToPatient: distAmbulanceToPatient.toFixed(1),
+             ambulanceToHospital: distAmbulanceToHospital.toFixed(1),
+             patientToHospital: distPatientToHospital.toFixed(1)
+          }
         };
       }
     }
 
     // ── Update Patient Record in Registry ──────────
     if (patientId) {
-      const historyStr = `[Booking ${bookingId}] Appointment secured at ${hospitalName} (${new Date().toLocaleDateString()})`;
+      const historyStr = `[Dispatch ${bookingId}] Life-support route established to ${hospitalName}`;
       await Patient.findByIdAndUpdate(patientId, {
         severity: severity || 'Moderate',
         $push: { medicalHistory: historyStr }
-      }).catch(() => {});
+      }, { returnDocument: 'after' }).catch(() => {});
     }
 
     res.status(201).json({
@@ -494,7 +510,7 @@ app.patch('/api/admin/hospitals/:id/crowd', async (req, res) => {
     const { crowdScore, crowdCount } = req.body;
     const hospital = await Hospital.findByIdAndUpdate(req.params.id,
       { crowdScore, crowdCount, lastUpdated: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
     res.json(hospital);
   } catch (error) {

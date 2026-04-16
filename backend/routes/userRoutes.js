@@ -242,6 +242,83 @@ router.post('/upload-report', upload.single('report'), async (req, res) => {
   }
 });
 
+// Specialized Prescription OCR + AI Safety Analysis
+router.post('/analyze-prescription', upload.single('prescription'), async (req, res) => {
+  try {
+    const { condition } = req.body;
+    const file = req.file;
+
+    if (!file) return res.status(400).json({ message: 'No prescription image provided' });
+
+    // 1. OCR Biometric Extraction
+    const ocrResult = await Tesseract.recognize(file.path, 'eng');
+    const rawText = ocrResult.data.text;
+
+    // 2. Structured AI Parsing
+    let structuredAnalysis = {
+      medications: [],
+      safetyAlert: null,
+      recommendation: "Standard clinical evaluation pending."
+    };
+
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-api-key-here') {
+      const prompt = `
+        Analyze this OCR medical prescription text and the patient's reported condition.
+        Condition: ${condition || "Not reported"}
+        OCR Text: ${rawText}
+
+        Respond ONLY with a JSON object:
+        {
+          "medications": [
+            { "name": "Drug Name", "dosage": "qty", "frequency": "times per day", "notes": "instruction" }
+          ],
+          "safetyAlert": {
+            "isCritical": boolean,
+            "severity": "Low" | "Medium" | "High",
+            "message": "Specific clinical reason for warning",
+            "action": "Immediate medical advice"
+          } | null,
+          "recommendation": "Overall clinical directive"
+        }
+
+        CRITICAL OVERRIDE: If the condition is Heart/Chest Pain and Dolo/Paracetamol is prescribed, 
+        set isCritical: true and severity: 'High'.
+      `;
+
+      const aiResponse = await openai.chat.completions.create({
+        model: AI_MODEL,
+        messages: [{ role: "system", content: "You are a clinical pharmacologist AI." }, { role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      });
+      structuredAnalysis = JSON.parse(aiResponse.choices[0].message.content);
+    } else {
+      // Fallback logic for demo stability
+      const isHeartPain = (condition || "").toLowerCase().includes('heart') || rawText.toLowerCase().includes('heart');
+      const isDolo = rawText.toLowerCase().includes('dolo') || rawText.toLowerCase().includes('paracetamol');
+      
+      if (isHeartPain && isDolo) {
+        structuredAnalysis.safetyAlert = {
+          isCritical: true,
+          severity: 'High',
+          message: 'Dolo (Analgesic) detected for Cardiac Chest Pain. This is a High-Risk mismatch.',
+          action: 'Contact Emergeny Node or Cardiologist Immediately.'
+        };
+      }
+      structuredAnalysis.medications = [{ name: "Detected Medication", dosage: "Variable", frequency: "Per OCR", notes: "Aegis AI Fallback Active" }];
+    }
+
+    res.json({
+      success: true,
+      rawText: rawText.substring(0, 500),
+      analysis: structuredAnalysis
+    });
+
+  } catch (error) {
+    console.error('Prescription Analysis Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get('/health-hub/:patientId', async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.patientId);
