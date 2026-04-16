@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import Button from '../components/ui/Button';
 
@@ -8,8 +9,27 @@ import {
   CreditCard, ShieldCheck, ArrowLeft,
   Info, Activity, Sparkles, Siren, Navigation,
   BedDouble, UserCheck, AlertTriangle, Timer,
-  FileText, ShieldAlert
+  FileText, ShieldAlert, ReceiptText, Landmark,
+  ChevronRight, Lock, Fingerprint
 } from 'lucide-react';
+
+// --- Animation Variants ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 15, opacity: 0 },
+  visible: { 
+    y: 0, 
+    opacity: 1, 
+    transition: { type: 'spring', stiffness: 260, damping: 20 } 
+  }
+};
 
 const BookingPage = () => {
   const {
@@ -17,20 +37,20 @@ const BookingPage = () => {
     booking, currentPatientId,
     isAutonomouslyBooked, ambulanceDispatched, severity
   } = useAppStore();
+  
   const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
   const assignedDoctor = doctors[0] || { name: 'Dr. Ramnik Patel', specialty: 'General Physician' };
-  const [fee] = useState(() => Math.floor(Math.random() * 51) + 50); // Random fee between 50 and 100
+  const [fee] = useState(() => Math.floor(Math.random() * 51) + 500); 
 
   const handleBooking = async () => {
     setIsConfirming(true);
-    // Simulate payment node handshake
     const success = await confirmBooking({
       doctorName: assignedDoctor.name,
       appointmentType: 'In-person',
-      amount: fee + 15, // Including tax
+      amount: fee + 15, 
     });
-    // Add success feedback
+    
     if (success) {
       if (Notification.permission === "granted") {
         new Notification("AegisOS - Dispatch Secured", {
@@ -46,295 +66,283 @@ const BookingPage = () => {
   // ── No hospital state ────────────────────────────────────────
   if (!bestHospital && !booking) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center text-white">
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center text-white font-sans"
+      >
         <div className="max-w-md">
-          <ShieldAlert className="w-16 h-16 text-sky-500 mx-auto mb-6 animate-pulse" />
-          <h2 className="text-3xl font-black mb-4 tracking-tighter">Initializing Dispatch Node...</h2>
-          <Button onClick={() => navigate('/')}>Return to Aegis Root</Button>
+          <motion.div
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+          >
+            <ShieldAlert className="w-16 h-16 text-sky-500 mx-auto mb-6" />
+          </motion.div>
+          <h2 className="text-3xl font-black mb-4 tracking-tighter italic">Initializing Dispatch Node...</h2>
+          <Button onClick={() => navigate('/')} className="bg-sky-600 hover:bg-sky-500">Return to Aegis Root</Button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
+  // ── Processing State ─────────────────────────────────────────
   if (isConfirming) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white font-sans text-center">
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center"
+      >
         <div className="w-24 h-24 mb-8 relative">
-           <div className="absolute inset-0 border-4 border-sky-500/20 rounded-full"></div>
-           <div className="absolute inset-0 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-           <CreditCard className="absolute inset-0 m-auto text-sky-400 w-10 h-10 animate-bounce" />
+           <motion.div 
+             animate={{ rotate: 360 }}
+             transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+             className="absolute inset-0 border-4 border-indigo-600/20 rounded-full"
+           />
+           <motion.div 
+             animate={{ rotate: 360 }}
+             transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+             className="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full"
+           />
+           <CreditCard className="absolute inset-0 m-auto text-indigo-600 w-8 h-8" />
         </div>
-        <h2 className="text-3xl font-black tracking-tighter mb-4 text-sky-400">Aegis Pay Node Active</h2>
-        <p className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] animate-pulse">Securing Clinical Transaction & Route...</p>
-      </div>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Aegis Pay Node Active</h2>
+        <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.2em] mt-2 animate-pulse">Securing Clinical Transaction...</p>
+      </motion.div>
     );
   }
 
-  // ── SUCCESS VIEW ─────────────────────────────────────────────
+  // ── SUCCESS VIEW (Post-Payment) ──────────────────────────────
   if (booking) {
     return (
-      <div className={`min-h-screen p-6 md:p-14 font-sans flex items-center justify-center transition-colors duration-500 ${isEmergency ? 'bg-rose-950' : 'bg-slate-50'}`}>
-        <div className="max-w-4xl w-full">
-          <div className={`rounded-[3rem] p-10 md:p-16 page-animate opacity-0 ${isEmergency ? 'bg-rose-900 border border-rose-800' : 'bg-white shadow-xl'}`}>
+      <div className={`min-h-screen p-4 md:p-14 font-sans flex items-center justify-center transition-colors duration-700 ${isEmergency ? 'bg-rose-50' : 'bg-slate-50'}`}>
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="max-w-4xl w-full bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden"
+        >
+          {/* Status Header */}
+          <div className={`p-8 md:p-12 text-center ${isEmergency ? 'bg-rose-600' : 'bg-indigo-600'}`}>
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}
+              className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md"
+            >
+              {isEmergency ? <Siren size={40} className="text-white animate-pulse" /> : <CheckCircle2 size={40} className="text-white" />}
+            </motion.div>
+            <h1 className="text-4xl font-black text-white tracking-tight">
+              {isEmergency ? 'Emergency Dispatched' : 'Booking Confirmed'}
+            </h1>
+            <p className="text-white/80 font-medium mt-2">Transaction ID: TXN-{currentPatientId?.slice(-8).toUpperCase()}</p>
+          </div>
 
-            {/* Ambulance Dispatch Banner */}
+          <div className="p-8 md:p-12">
+            {/* Original Dispatch Banner Logic */}
             {ambulanceDispatched && (
-              <div className="bg-rose-500 rounded-3xl p-8 mb-10 flex items-center justify-between border-4 border-white/20 shadow-2xl shadow-rose-500/40">
-                <div className="flex items-start gap-5">
-                  <div className="w-16 h-16 bg-white/20 rounded-[1.5rem] flex items-center justify-center shrink-0">
-                    <Siren size={32} className="text-white animate-bounce" />
+              <motion.div 
+                initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+                className="bg-rose-50 border border-rose-100 rounded-3xl p-6 mb-10 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center shrink-0">
+                    <Siren size={24} className="text-white animate-bounce" />
                   </div>
                   <div>
-                    <p className="text-white font-black text-lg uppercase tracking-widest mb-1">
-                      🚑 Ambulance On-Route
-                    </p>
-                    <p className="text-rose-100 font-medium max-w-sm">
-                      Unit <span className="font-black text-white">{ambulanceDispatched.vehicleId}</span> dispatched from nearest hub. 
-                    </p>
+                    <p className="text-rose-900 font-bold uppercase text-xs tracking-widest mb-1">Ambulance On-Route</p>
+                    <p className="text-rose-700 text-sm font-medium">Unit <span className="font-bold">{ambulanceDispatched.vehicleId}</span> dispatched.</p>
                   </div>
                 </div>
-                <div className="text-right hidden md:block">
-                   <p className="text-[10px] font-black text-rose-200 uppercase tracking-widest">ETA</p>
-                   <p className="text-4xl font-black text-white">{ambulanceDispatched.etaMinutes}<span className="text-sm ml-1 font-medium">MIN</span></p>
+                <div className="text-right">
+                   <p className="text-[10px] font-bold text-rose-400 uppercase">ETA</p>
+                   <p className="text-3xl font-black text-rose-600">{ambulanceDispatched.etaMinutes}m</p>
                 </div>
-              </div>
+              </motion.div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="flex flex-col items-start mb-10">
-                  {isAutonomouslyBooked && (
-                    <div className={`inline-flex items-center gap-2 py-1.5 px-6 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-6 ${isEmergency ? 'bg-rose-800 text-rose-200' : 'bg-sky-900 text-white shadow-xl'}`}>
-                      <Sparkles size={12} /> Autonomous Protocol Success
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Facility Details</h3>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-indigo-600"><MapPin size={24}/></div>
+                    <div>
+                      <p className="font-bold text-lg text-slate-900">{bestHospital?.name}</p>
+                      <p className="text-sm text-slate-500 font-medium">{bestHospital?.distance} from current location</p>
                     </div>
-                  )}
-
-                  <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center mb-6 shadow-2xl ${isEmergency ? 'bg-rose-800 text-rose-100' : 'bg-emerald-50 text-emerald-600'}`}>
-                    {isEmergency ? <Siren size={36} /> : <CheckCircle2 size={40} />}
                   </div>
-
-                  <h1 className={`text-5xl font-black tracking-tighter mb-4 leading-none ${isEmergency ? 'text-white' : 'text-slate-900'}`}>
-                    {isEmergency ? 'Emergency Dispatched' : 'Success Confirmed'}
-                  </h1>
-                  <p className={`font-bold text-lg leading-snug ${isEmergency ? 'text-rose-200' : 'text-slate-500'}`}>
-                    Reservation secured at {bestHospital?.name}. Aegis Pay transaction complete.
+                </div>
+                
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText size={16} className="text-indigo-600" />
+                    <h4 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Clinical Briefing</h4>
+                  </div>
+                  <p className="text-sm text-slate-600 italic leading-relaxed">
+                    "Digital profile synced. Specialists on standby. Present Triage ID upon arrival."
                   </p>
                 </div>
+              </div>
 
-                {/* Patient Briefing */}
-                <div className={`p-8 rounded-[2rem] mb-10 border ${isEmergency ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
-                   <div className="flex items-center gap-2 mb-4">
-                      <FileText size={16} className="text-sky-500" />
-                      <h4 className={`text-[10px] font-black uppercase tracking-widest ${isEmergency ? 'text-rose-400' : 'text-slate-400'}`}>Clinical Briefing Dispatch</h4>
-                   </div>
-                   <p className={`text-sm italic font-medium leading-relaxed ${isEmergency ? 'text-rose-100' : 'text-slate-600'}`}>
-                     "Clinical profile synced with facility node. ER specialists on standby. Present Triage ID upon arrival for priority bypass."
-                   </p>
+              <div className="bg-slate-50 p-8 rounded-[2rem] space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase">Triage ID</span>
+                  <span className="font-mono font-bold text-indigo-600">{currentPatientId?.slice(-6).toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase">Total Amount</span>
+                  <span className="text-2xl font-black text-slate-900">₹{fee}</span>
+                </div>
+                <div className="pt-4">
+                  <Button onClick={() => navigate('/health-hub')} className="w-full h-14 rounded-xl bg-slate-900 shadow-xl">Return to Dashboard</Button>
+                  <button onClick={() => window.print()} className="w-full mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Download Receipt</button>
                 </div>
               </div>
-
-              {/* Data Snapshot Cards */}
-              <div className="space-y-4">
-                 <div className={`p-6 rounded-[2rem] flex items-center justify-between group transition-all ${isEmergency ? 'bg-rose-800/50 hover:bg-rose-800' : 'bg-slate-50 hover:bg-white hover:shadow-xl'}`}>
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-sky-400"><Clock size={20} /></div>
-                       <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Time Frame</p>
-                          <p className="font-bold">ASAP • TODAY</p>
-                       </div>
-                    </div>
-                 </div>
-                 <div className={`p-6 rounded-[2rem] flex items-center justify-between group transition-all ${isEmergency ? 'bg-rose-800/50 hover:bg-rose-800' : 'bg-slate-50 hover:bg-white hover:shadow-xl'}`}>
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-sky-400"><MapPin size={20} /></div>
-                       <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Destination</p>
-                          <p className="font-bold truncate max-w-[150px]">{bestHospital?.name}</p>
-                       </div>
-                    </div>
-                    <Navigation size={20} className="text-sky-500 opacity-50 group-hover:opacity-100" />
-                 </div>
-                 <div className={`p-6 rounded-[2rem] flex items-center justify-between group transition-all ${isEmergency ? 'bg-rose-800/50 hover:bg-rose-800' : 'bg-slate-50 hover:bg-white hover:shadow-xl'}`}>
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-sky-400"><ShieldCheck size={20} /></div>
-                       <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Triage ID</p>
-                          <p className="font-black text-sky-500">{currentPatientId?.slice(-6).toUpperCase()}</p>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-            </div>
-
-            <div className="mt-12 flex flex-col md:flex-row items-center justify-center gap-6">
-              <Button
-                onClick={() => navigate('/health-hub')}
-                variant={isEmergency ? 'danger' : 'primary'}
-                className="rounded-2xl px-12 h-16 w-full md:w-auto text-lg"
-              >
-                Return to Health Hub
-              </Button>
-              <button 
-                onClick={() => window.print()} 
-                className={`text-sm font-black uppercase tracking-widest border-b-2 transition-colors ${isEmergency ? 'text-rose-400 border-rose-800 hover:text-white' : 'text-slate-400 border-slate-100 hover:text-slate-900'}`}
-              >
-                Download Clinical Receipt
-              </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
-  // ── Emergency Mode (Pre-booking) ─────────────────────────────
-  if (isEmergency && !booking) {
-    return (
-      <div className="min-h-screen bg-rose-950 font-sans flex items-center justify-center p-6">
-        <div className="max-w-2xl w-full text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-2 bg-rose-500 text-white rounded-full text-xs font-black uppercase tracking-widest mb-8 animate-pulse">
-            <Siren size={14} /> Emergency Protocol
-          </div>
-
-          <h1 className="text-6xl font-black text-white tracking-tighter mb-4">Critical Alert</h1>
-          <p className="text-rose-300 text-lg font-medium mb-10">
-            High-severity case detected. Aegis AI is auto-routing to the nearest available emergency facility.
-          </p>
-
-          {/* Hospital quick info */}
-          <div className="bg-rose-900/60 border border-rose-800 rounded-[2rem] p-8 mb-8 text-left">
-            <h3 className="text-rose-400 text-[10px] font-black uppercase tracking-widest mb-4">Emergency Node Selected</h3>
-            <p className="text-3xl font-black text-white mb-3">{bestHospital?.name}</p>
-            <div className="flex flex-wrap gap-6 text-sm">
-              <div className="flex items-center gap-2 text-rose-200 font-bold">
-                <MapPin size={14} /> {bestHospital?.distance || '—'}
-              </div>
-              <div className="flex items-center gap-2 text-rose-200 font-bold">
-                <Timer size={14} /> {bestHospital?.waitTime || '—'} wait
-              </div>
-              <div className="flex items-center gap-2 text-rose-200 font-bold">
-                <BedDouble size={14} /> {bestHospital?.bedsAvailable} beds available
-              </div>
-            </div>
-          </div>
-
-          <Button
-            onClick={handleBooking}
-            isLoading={isConfirming}
-            className="w-full py-8 text-xl rounded-2xl bg-rose-500 hover:bg-rose-400 text-white shadow-2xl shadow-rose-500/30"
-            icon={Siren}
-          >
-            Call Ambulance & Confirm Booking
-          </Button>
-
-          <button
-            onClick={() => navigate('/results')}
-            className="mt-6 text-rose-400 hover:text-white text-sm font-bold transition-colors"
-          >
-            ← Back to facility list
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── STANDARD CHECKOUT VIEW ───────────────────────────────────
+  // ── MAIN CHECKOUT VIEW ───────────────────────────────────────
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto p-6 md:p-14">
-        <div className="flex items-center gap-6 mb-16">
-          <button onClick={() => navigate('/results')} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-white transition-all">
-            <ArrowLeft size={18} />
-          </button>
-          <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Checkout</h1>
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
+      {/* SaaS Nav */}
+      <nav className="h-16 bg-white border-b border-slate-200 flex items-center px-6 md:px-12 sticky top-0 z-50">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <ShieldCheck className="text-white w-5 h-5" />
+          </div>
+          <span className="font-bold text-lg tracking-tight hidden md:block">Aegis<span className="text-indigo-600">Health</span></span>
         </div>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full text-[10px] font-bold text-emerald-600 border border-emerald-100">
+            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+            SYSTEM OPERATIONAL
+          </div>
+        </div>
+      </nav>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
-          {/* Left: Facility Details */}
-          <div className="lg:col-span-2 space-y-12">
-            <section>
-              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-8">Selected Facility</h3>
-              <div className="p-10 bg-white border border-slate-100 rounded-[2rem] shadow-sm">
-                <div className="inline-flex items-center gap-2 text-sky-600 font-black text-[10px] uppercase tracking-widest mb-4">
-                  <CheckCircle2 size={12} /> Optimization Recommendation
-                </div>
-                <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">{bestHospital?.name}</h2>
-                <div className="flex flex-wrap gap-6 text-slate-500 text-sm font-medium">
-                  <div className="flex items-center gap-1.5"><MapPin size={16} /> {bestHospital?.distance || '—'}</div>
-                  <div className="flex items-center gap-1.5 text-rose-500 font-bold"><Clock size={16} /> {bestHospital?.waitTime || '—'} Wait</div>
-                  <div className="flex items-center gap-1.5 text-emerald-600 font-bold"><BedDouble size={16} /> {bestHospital?.bedsAvailable} Beds</div>
-                  <div className="flex items-center gap-1.5 text-sky-600 font-bold"><UserCheck size={16} /> {bestHospital?.doctorsAvailable} Doctors</div>
-                </div>
-              </div>
-            </section>
+      <main className="max-w-7xl mx-auto py-8 md:py-14 px-4 md:px-12">
+        <motion.div 
+          variants={containerVariants} initial="hidden" animate="visible"
+          className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-16"
+        >
+          {/* Left Column */}
+          <div className="lg:col-span-8 space-y-10">
+            <motion.div variants={itemVariants} className="flex items-center gap-4">
+              <button onClick={() => navigate('/results')} className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 transition-all group">
+                <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+              </button>
+              <h1 className="text-4xl font-black tracking-tight text-slate-900">Checkout</h1>
+            </motion.div>
 
-            <section>
-              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-8">Scheduling Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="p-8 bg-white border border-slate-100 rounded-[2rem] shadow-sm flex items-center gap-6">
-                  <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><Calendar size={24} /></div>
+            {/* Hospital Section */}
+            <motion.section variants={itemVariants} className="space-y-6">
+              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Selected Facility</h3>
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-6">
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Appointment Date</p>
-                    <p className="text-lg font-black text-slate-900">Today</p>
+                    <div className="inline-flex items-center gap-2 text-indigo-600 font-bold text-[10px] uppercase tracking-widest mb-2">
+                      <Sparkles size={12} /> Optimization Recommendation
+                    </div>
+                    <h2 className="text-3xl font-bold text-slate-900">{bestHospital?.name}</h2>
+                  </div>
+                  {isEmergency && <div className="bg-rose-100 text-rose-600 p-3 rounded-2xl"><Siren size={24}/></div>}
+                </div>
+                
+                <div className="flex flex-wrap gap-4 md:gap-8">
+                  <div className="flex items-center gap-2 text-slate-500 font-semibold text-sm">
+                    <MapPin size={16} className="text-indigo-500"/> {bestHospital?.distance}
+                  </div>
+                  <div className="flex items-center gap-2 text-rose-500 font-bold text-sm">
+                    <Clock size={16}/> {bestHospital?.waitTime} Wait
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
+                    <BedDouble size={16}/> {bestHospital?.bedsAvailable} Beds
                   </div>
                 </div>
-                <div className="p-8 bg-white border border-slate-100 rounded-[2rem] shadow-sm flex items-center gap-6">
-                  <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><Clock size={24} /></div>
+              </div>
+            </motion.section>
+
+            {/* Scheduling Section */}
+            <motion.section variants={itemVariants} className="space-y-6">
+              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Priority Window</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-5">
+                  <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><Calendar size={20} /></div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Reserved Slot</p>
-                    <p className="text-lg font-black text-slate-900">3:00 – 5:00 PM</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Date</p>
+                    <p className="font-bold">Today, {new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-5">
+                  <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><Timer size={20} /></div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Routing</p>
+                    <p className="font-bold">Immediate Priority Bay</p>
                   </div>
                 </div>
               </div>
-            </section>
+            </motion.section>
 
-            <div className="p-8 bg-sky-50 rounded-[2rem] border border-sky-100 flex items-start gap-6">
-              <Info className="text-sky-500 mt-1 shrink-0" />
+            {/* Protocol Alert */}
+            <motion.div variants={itemVariants} className="p-6 bg-indigo-50 border border-indigo-100 rounded-3xl flex gap-5">
+              <div className="shrink-0 w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                <ShieldCheck size={20}/>
+              </div>
               <div>
-                <h4 className="font-black text-sky-900 mb-1">Security & Protocols</h4>
-                <p className="text-sm text-sky-700 leading-relaxed font-medium">
-                  Your triage code matches {bestHospital?.name} specialty nodes. Present your digital ID at the autonomous check-in terminal.
+                <h4 className="font-bold text-indigo-900">Security & Clinical Protocols</h4>
+                <p className="text-sm text-indigo-700/80 font-medium leading-relaxed mt-1">
+                  Your triage code matches {bestHospital?.name} specialty nodes. All telemetry is encrypted with AES-256 standards.
                 </p>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Right: Payment Sidebar */}
-          <div>
-            <div className="bg-slate-50 rounded-[3rem] p-10 border border-slate-100 sticky top-10">
-              <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Payment Summary</h2>
-              <div className="space-y-5 pb-8 border-b border-slate-200 mb-8">
-                <div className="flex justify-between items-center text-slate-500 font-bold text-sm">
-                  <span>Consultation Fee</span><span className="text-slate-900">₹{fee}</span>
+          {/* Right Column: Payment Sidebar */}
+          <motion.div variants={itemVariants} className="lg:col-span-4">
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 md:p-10 shadow-xl shadow-slate-200/50 sticky top-24">
+              <h2 className="text-xl font-bold text-slate-900 mb-8">Order Summary</h2>
+              
+              <div className="space-y-5 pb-8 border-b border-slate-100 mb-8">
+                <div className="flex justify-between items-center text-sm font-semibold">
+                  <span className="text-slate-400">Consultation Fee</span>
+                  <span className="text-slate-900">₹{fee}</span>
                 </div>
-                <div className="flex justify-between items-center text-slate-500 font-bold text-sm">
-                  <span>Service Tax (Node Sync)</span><span className="text-slate-900">₹15</span>
+                <div className="flex justify-between items-center text-sm font-semibold">
+                  <span className="text-slate-400">Service Tax (Node Sync)</span>
+                  <span className="text-slate-900">₹15</span>
                 </div>
-                <div className="flex justify-between items-center text-emerald-500 font-black text-sm">
-                  <span>Aegis Intelligence Rebate</span><span>– ₹15</span>
+                <div className="flex justify-between items-center text-sm font-bold text-emerald-600">
+                  <span>Aegis Intelligence Rebate</span>
+                  <span>– ₹15</span>
                 </div>
               </div>
-              <div className="flex justify-between items-center mb-10">
-                <span className="text-xl font-black text-slate-900">Total Due</span>
-                <span className="text-4xl font-black text-sky-600 tracking-tighter">₹{fee}</span>
+
+              <div className="flex justify-between items-end mb-10">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Amount</span>
+                  <p className="text-4xl font-black text-slate-900 tracking-tighter">₹{fee}</p>
+                </div>
+                <Landmark size={32} className="text-slate-100 mb-1" />
               </div>
 
-              <Button
-                onClick={handleBooking}
-                isLoading={isConfirming}
-                className="w-full py-6 rounded-2xl shadow-xl shadow-sky-500/20 text-lg mb-8"
-                icon={CreditCard}
-              >
-                Confirm Booking
-              </Button>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  onClick={handleBooking}
+                  isLoading={isConfirming}
+                  className={`w-full py-7 rounded-2xl shadow-xl transition-all text-lg font-bold ${isEmergency ? 'bg-rose-600 shadow-rose-200 hover:bg-rose-700' : 'bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700'}`}
+                >
+                  <CreditCard className="mr-2 w-5 h-5" />
+                  {isEmergency ? 'Confirm Dispatch' : 'Complete Payment'}
+                </Button>
+              </motion.div>
 
-              <div className="flex items-center gap-3 justify-center text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                <ShieldCheck className="text-emerald-500" size={14} /> Secure Triage Node
+              <div className="mt-6 flex items-center gap-2 justify-center text-[10px] font-black uppercase text-slate-300 tracking-widest">
+                <Lock size={12} /> Secure Triage Payment Node
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+          </motion.div>
+        </motion.div>
+      </main>
     </div>
   );
 };
