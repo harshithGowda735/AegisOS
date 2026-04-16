@@ -1,135 +1,120 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import HospitalCard from '../components/hospital/HospitalCard';
-import Skeleton from '../components/ui/Skeleton';
-import Button from '../components/ui/Button';
 import SeverityBadge from '../components/ui/SeverityBadge';
-import { ArrowLeft, Filter, Search } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  RefreshCcw, 
+  ShieldCheck, 
+  Activity, 
+  MapPin,
+  Sparkles,
+  Info
+} from 'lucide-react';
+import Button from '../components/ui/Button';
 
 const HospitalResults = () => {
-  const { symptoms, severity, hospitals, bestHospital, setBestHospital } = useAppStore();
+  const { triageData, hospitals, bestHospital, isLoading, resetSession } = useAppStore();
   const navigate = useNavigate();
-  const [internalLoading, setInternalLoading] = useState(true);
 
-  useEffect(() => {
-    if (!symptoms || symptoms.length === 0) {
-      navigate('/');
-      return;
-    }
-    
-    // Simulate a brief "data preparation" step for high-end SaaS feel
-    const timer = setTimeout(() => setInternalLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, [symptoms, navigate]);
-
-  const handleSelectHospital = (hospital) => {
-    setBestHospital(hospital);
-    navigate('/booking');
-  };
-
-  if (!symptoms || symptoms.length === 0) return null;
+  if (isLoading || !triageData) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-10">
+        <Activity className="w-16 h-16 text-sky-500 animate-pulse mb-8" />
+        <h2 className="text-3xl font-black text-slate-900 tracking-tight text-center mb-2">Analyzing clinical data...</h2>
+        <p className="text-slate-500 font-medium text-center max-w-sm">Aegis AI Node is calculating regional hospital wait times and staff availability.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-12 px-4 md:px-8 font-sans">
-      <div className="w-full max-w-7xl">
-        
-        {/* Navigation & Header */}
-        <div className="mb-12 page-animate opacity-0">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
-            className="mb-8 -ml-4 hover:translate-x-[-4px]"
-            icon={ArrowLeft}
-          >
-            Back to Triage
-          </Button>
-          
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <SeverityBadge severity={severity} />
-                <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full">
-                  Analysis Complete
-                </span>
-              </div>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
-                Recommended Facilities
-              </h1>
-              <p className="text-slate-500 text-lg mt-3 font-medium">
-                Showing hospitals with specialized care for <span className="text-slate-800 font-bold">{symptoms.join(', ')}</span>.
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                <input 
-                  type="text" 
-                  placeholder="Filter by name..." 
-                  className="bg-white border border-slate-200 rounded-2xl py-3 pl-11 pr-4 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all outline-none w-64 shadow-sm"
-                />
-              </div>
-              <Button variant="secondary" icon={Filter} className="h-[46px]">Filters</Button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-white font-sans text-slate-900">
+      <header className="p-6 md:p-12 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div>
+           <div className="flex items-center gap-2 mb-2">
+             <button 
+                onClick={() => navigate('/triage')}
+                className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-400"
+             >
+                <ArrowLeft size={18} />
+             </button>
+             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Diagnosis Snapshot</span>
+           </div>
+           <div className="flex items-center gap-4">
+              <h1 className="text-4xl font-black tracking-tighter">Analysis Results</h1>
+              <SeverityBadge severity={triageData.severity} />
+           </div>
         </div>
+        <div className="flex gap-4">
+           <Button onClick={() => navigate('/emergency')} variant="danger" className="rounded-xl px-8">Immediate ER</Button>
+           <Button onClick={resetSession} variant="secondary" icon={RefreshCcw} className="rounded-xl">Recalculate</Button>
+        </div>
+      </header>
 
-        {/* Results Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {internalLoading ? (
-            // Skeleton State
-            Array(3).fill(0).map((_, i) => (
-              <div key={i} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm space-y-6">
-                <div className="flex justify-between">
-                  <Skeleton className="w-1/2 h-8" />
-                  <Skeleton className="w-12 h-6" />
+      <main className="max-w-7xl mx-auto p-6 md:p-12">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+          {/* Diagnostic Profile Column */}
+          <div className="lg:col-span-1 border-r border-slate-100 pr-0 lg:pr-12 space-y-10 page-animate opacity-0">
+             <section>
+                <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4">Aegis AI Summary</h3>
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 italic text-sm text-slate-600 leading-relaxed">
+                   "{triageData.summary}"
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Skeleton className="h-20" />
-                  <Skeleton className="h-20" />
-                  <Skeleton className="h-20" />
-                  <Skeleton className="h-20" />
+             </section>
+
+             <section>
+                <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4">Recommended Care</h3>
+                <div className="space-y-3">
+                   {triageData.recommendations.map((rec, i) => (
+                      <div key={i} className="flex gap-3 text-sm font-bold text-slate-700">
+                         <div className="w-5 h-5 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 text-[8px] shrink-0 mt-0.5">{i+1}</div>
+                         {rec}
+                      </div>
+                   ))}
                 </div>
-                <Skeleton className="h-14 w-full" />
-              </div>
-            ))
-          ) : (
-            hospitals.map((hospital, index) => {
-              const isBest = bestHospital && hospital.id === bestHospital.id;
-              
-              return (
-                <div 
-                  key={hospital.id} 
-                  className="opacity-0 page-animate" 
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <HospitalCard 
-                    hospital={hospital} 
-                    isBest={isBest}
-                    severity={severity}
-                    onSelect={handleSelectHospital} 
-                  />
+             </section>
+
+             <div className="p-6 bg-sky-50 rounded-3xl border border-sky-100">
+                <div className="flex items-center gap-2 text-sky-600 font-black text-[10px] uppercase tracking-widest mb-2">
+                   <ShieldCheck size={14} /> Optimization active
                 </div>
-              );
-            })
-          )}
-        </div>
-        
-        {/* Help Banner */}
-        {!internalLoading && (
-          <div className="mt-16 bg-slate-900 rounded-[2.5rem] p-10 md:p-14 text-white flex flex-col md:flex-row items-center justify-between gap-8 page-animate opacity-0 stagger-3">
-            <div className="max-w-xl text-center md:text-left">
-              <h2 className="text-3xl font-black mb-4 tracking-tight">Need specialized assistance?</h2>
-              <p className="text-slate-400 text-lg font-medium">Our clinical concierge team is available 24/7 to help you navigate complex medical requirements and insurance paperwork.</p>
-            </div>
-            <Button variant="primary" className="bg-white text-slate-900 hover:bg-slate-100 hover:shadow-white/20 whitespace-nowrap px-10">
-              Speak to specialized concierge
-            </Button>
+                <p className="text-xs font-medium text-slate-600">
+                   Routing is weighted by specializations matching your medical background and live node occupancy.
+                </p>
+             </div>
           </div>
-        )}
-        
-      </div>
+
+          {/* Hospitals Grid Column */}
+          <div className="lg:col-span-3">
+             <div className="flex items-center justify-between mb-10">
+                <h2 className="text-3xl font-black tracking-tight text-slate-900">Regional Facilities</h2>
+                <div className="flex gap-4 text-xs font-black uppercase tracking-widest text-slate-400">
+                   <div className="flex items-center gap-1.5"><MapPin size={12} /> Near You</div>
+                   <div className="flex items-center gap-1.5"><Sparkles size={12} className="text-sky-500" /> AI Ranked</div>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 page-animate opacity-0" style={{ animationDelay: '200ms' }}>
+                {hospitals.map(hospital => (
+                  <HospitalCard 
+                    key={hospital.id} 
+                    hospital={hospital} 
+                    isRecommended={bestHospital?.id === hospital.id} 
+                  />
+                ))}
+             </div>
+
+             {hospitals.length === 0 && (
+               <div className="text-center py-20 bg-slate-50 rounded-[3rem] border border-dashed border-slate-200">
+                  <Info className="mx-auto mb-4 text-slate-300" size={48} />
+                  <h3 className="text-xl font-bold text-slate-400">No matching facilities in range.</h3>
+                  <p className="text-slate-400 text-sm">Expand search radius or consult the emergency node.</p>
+               </div>
+             )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 };

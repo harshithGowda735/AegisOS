@@ -1,43 +1,69 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Phone, 
+  MapPin, 
+  ArrowLeft, 
+  ShieldAlert, 
+  Activity,
+  Navigation
+} from 'lucide-react';
+import Button from '../components/ui/Button';
 
 const EmergencyPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-red-600 flex flex-col items-center justify-center p-6 text-white font-sans selection:bg-white/30">
-      
-      <div className="mb-10 lg:mb-14 animate-pulse flex items-center justify-center w-28 h-28 lg:w-36 lg:h-36 bg-white rounded-full shadow-[0_0_80px_rgb(255,255,255,0.5)]">
-        <svg className="w-16 h-16 lg:w-20 lg:h-20 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      </div>
+    <div className="min-h-screen bg-rose-600 flex flex-col items-center justify-center p-6 text-white text-center font-sans">
+      <div className="max-w-2xl w-full page-animate opacity-0">
+        <header className="mb-12">
+          <div className="w-24 h-24 bg-white/20 backdrop-blur-3xl rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl animate-pulse">
+            <ShieldAlert size={48} className="text-white" />
+          </div>
+          <h1 className="text-6xl font-black tracking-tighter mb-4 leading-tight">Emergency Dispatch Active</h1>
+          <p className="text-rose-100 text-xl font-medium tracking-tight">Immediate medical assistance is required. Node protocol 01-A activated.</p>
+        </header>
 
-      <div className="text-center max-w-4xl mx-auto w-full z-10">
-        <h1 className="text-[3.5rem] md:text-[6rem] lg:text-[8rem] font-black mb-4 md:mb-6 uppercase tracking-tighter leading-none text-white drop-shadow-xl">
-          Emergency Mode
-        </h1>
-        
-        <p className="text-xl md:text-3xl font-bold text-red-100 mb-14 md:mb-20 max-w-2xl mx-auto leading-tight drop-shadow-md">
-          Immediate Dispatch Protocol. Bypass triage and connect directly to services.
-        </p>
+        <div className="space-y-6 mb-16">
+          <button 
+            onClick={() => window.location.href = 'tel:911'}
+            className="w-full h-24 bg-white text-rose-600 rounded-[2rem] flex items-center justify-center gap-6 text-3xl font-black shadow-2xl hover:scale-[1.02] transition-transform active:scale-95"
+          >
+            <Phone size={32} /> Call Ambulance (911)
+          </button>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-6 bg-white/10 backdrop-blur-xl rounded-[2rem] border border-white/10 flex items-center gap-4 text-left">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><MapPin size={20} /></div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-rose-200">Broadcast ID</p>
+                <p className="font-bold">Aegis-LOC-8219</p>
+              </div>
+            </div>
+            <div className="p-6 bg-white/10 backdrop-blur-xl rounded-[2rem] border border-white/10 flex items-center gap-4 text-left">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><Navigation size={20} /></div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-rose-200">ER Routing</p>
+                <p className="font-bold">City Central High</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <a 
-          href="tel:911" 
-          className="inline-flex w-full md:w-auto items-center justify-center gap-4 bg-white text-red-600 hover:text-red-700 hover:bg-gray-50 text-4xl md:text-5xl lg:text-6xl font-black py-8 px-10 md:py-10 md:px-24 rounded-[2.5rem] md:rounded-[3rem] transition-all duration-100 transform active:scale-[0.97] shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
+        <button 
+          onClick={() => navigate('/results')}
+          className="flex items-center gap-2 mx-auto text-rose-200 hover:text-white font-bold transition-all group"
         >
-          <span className="text-5xl md:text-6xl drop-shadow-sm">📞</span> 
-          Call Ambulance
-        </a>
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> 
+          Return to Triage Results
+        </button>
+
+        <footer className="mt-20 pt-10 border-t border-white/10">
+           <div className="flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest text-white/40">
+              <Activity size={14} /> Aegis Emergency Node Active
+           </div>
+        </footer>
       </div>
-
-      <button 
-        onClick={() => navigate('/')} 
-        className="absolute top-8 left-8 md:top-10 md:left-10 text-red-100/70 hover:text-white font-bold tracking-widest text-sm uppercase transition-colors"
-      >
-        ← Esc
-      </button>
-
     </div>
   );
 };

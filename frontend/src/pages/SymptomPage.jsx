@@ -1,133 +1,99 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import Button from '../components/ui/Button';
-import { Brain, Sparkles, ShieldCheck, Activity, ArrowLeft } from 'lucide-react';
+import { 
+  Activity, 
+  ArrowLeft, 
+  Search, 
+  Sparkles,
+  ShieldCheck,
+  ChevronRight
+} from 'lucide-react';
 
 const SymptomPage = () => {
-  const [symptomInput, setSymptomInput] = useState('');
-  const [analysisStep, setAnalysisStep] = useState(0);
-  const { processSymptoms, isLoading } = useAppStore();
+  const { processSymptoms, isLoading, userProfile } = useAppStore();
+  const [input, setInput] = useState('');
   const navigate = useNavigate();
 
-  const steps = [
-    "Analyzing symptoms...",
-    "Scanning diagnostic database...",
-    "Identifying clinical patterns...",
-    "Calculating triage severity...",
-    "Optimizing hospital routing..."
-  ];
-
-  useEffect(() => {
-    let interval;
-    if (isLoading) {
-      setAnalysisStep(0);
-      interval = setInterval(() => {
-        setAnalysisStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
-      }, 800);
-    } else {
-      setAnalysisStep(0);
-    }
-    return () => clearInterval(interval);
-  }, [isLoading]);
-
-  const handleAnalyze = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!symptomInput.trim() || isLoading) return;
-    
-    const success = await processSymptoms(symptomInput);
-    if (success) {
-      // Small delay for the UX feel of "completing" the analysis
-      setTimeout(() => navigate('/results'), 500);
-    }
+    if (!input.trim()) return;
+    const success = await processSymptoms(input);
+    if (success) navigate('/results');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans overflow-hidden relative">
-      {/* Subtle Background Blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-100/40 rounded-full blur-[120px] -z-10"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/40 rounded-full blur-[120px] -z-10"></div>
-
-      {/* Back to Portal Button */}
-      {!isLoading && (
-        <div className="absolute top-8 left-8 page-animate opacity-0">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
-            className="text-slate-500 font-black hover:translate-x-[-4px]"
-            icon={ArrowLeft}
-          >
-            Terminal Portal
-          </Button>
-        </div>
-      )}
-
-      <div className="w-full max-w-2xl glass rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] p-10 md:p-14 text-center page-animate opacity-0">
-        
-        <div className="mx-auto w-20 h-20 bg-indigo-600 text-white rounded-[2rem] flex items-center justify-center mb-8 shadow-xl shadow-indigo-600/30 transition-transform hover:scale-110 duration-500">
-          <Brain className="w-10 h-10" />
-        </div>
-
-        <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-5 tracking-tight">
-          Aegis<span className="text-indigo-600">OS</span> Triage
-        </h1>
-        <p className="text-slate-500 text-lg mb-10 max-w-lg mx-auto leading-relaxed font-medium">
-          Powered by clinical-grade AI. Describe your condition with natural language for immediate routing.
-        </p>
-
-        <form onSubmit={handleAnalyze} className="w-full relative">
-          <div className="relative group">
-            <textarea
-              className="w-full bg-white border-2 border-slate-100 text-slate-800 rounded-3xl p-6 md:p-8 text-xl focus:ring-8 focus:ring-indigo-50 focus:border-indigo-500 outline-none transition-all duration-500 resize-none min-h-[180px] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.02)] group-hover:shadow-lg"
-              placeholder="e.g. Sharp pain in lower abdomen, nausea, and slight fever since this morning..."
-              value={symptomInput}
-              onChange={(e) => setSymptomInput(e.target.value)}
-              disabled={isLoading}
-              autoFocus
-            />
-            {!isLoading && (
-              <div className="absolute bottom-4 right-6 text-slate-300 text-sm font-bold flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" /> SECURE DATA
-              </div>
-            )}
+    <div className="min-h-screen bg-white font-sans flex flex-col">
+      {/* Top Navigation */}
+      <nav className="p-6 md:p-10 flex items-center justify-between border-b border-slate-50">
+        <button 
+          onClick={() => navigate('/profiling')}
+          className="flex items-center gap-2 text-slate-400 hover:text-slate-900 font-bold transition-all group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-slate-100">
+            <ArrowLeft size={18} />
           </div>
-          
-          <div className="mt-10 min-h-[100px] flex flex-col items-center justify-center">
-            {isLoading ? (
-              <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center gap-3 text-indigo-600 font-bold text-xl mb-4">
-                  <Sparkles className="w-6 h-6 animate-pulse" />
-                  <span>{steps[analysisStep]}</span>
-                </div>
-                <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-indigo-600 transition-all duration-500 ease-out" 
-                    style={{ width: `${((analysisStep + 1) / steps.length) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            ) : (
+          Back to Profile
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 font-black text-[10px]">
+             {userProfile?.age || '25'}
+          </div>
+          <p className="text-sm font-black text-slate-900 tracking-tight">{userProfile?.gender || 'Patient'}</p>
+        </div>
+      </nav>
+
+      <main className="flex-1 flex items-center justify-center p-6 md:p-14">
+        <div className="max-w-2xl w-full page-animate opacity-0">
+          <header className="text-center mb-12">
+             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-50 text-sky-600 rounded-full text-xs font-black uppercase tracking-widest mb-6 border border-sky-100">
+                <Sparkles size={12} /> AI Symptom Analysis
+             </div>
+             <h1 className="text-5xl font-black text-slate-900 tracking-tighter mb-4">How are you feeling?</h1>
+             <p className="text-slate-500 font-medium">Describe your symptoms in natural language. Our AI node will analyze severity and match you with the best regional facility.</p>
+          </header>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative group">
+               <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="e.g., I have a persistent sharp pain in my chest and difficulty breathing..."
+                className="w-full h-48 bg-white border-2 border-slate-100 rounded-[2rem] p-8 text-xl font-medium text-slate-700 outline-none transition-all focus:border-sky-500 focus:shadow-2xl focus:shadow-sky-500/5 resize-none"
+               />
+               <div className="absolute top-8 right-8 text-slate-100 group-focus-within:text-sky-100 transition-colors">
+                  <Activity size={32} />
+               </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center gap-4">
               <Button 
                 type="submit" 
-                disabled={!symptomInput.trim()}
-                className="w-full py-5 text-xl"
-                icon={Activity}
+                isLoading={isLoading} 
+                className="w-full md:w-auto px-10 py-5 rounded-2xl text-lg flex-1"
+                icon={Search}
               >
                 Analyze Symptoms
               </Button>
-            )}
-          </div>
-        </form>
-        
-        <div className="mt-8 flex items-center justify-center gap-6 text-slate-400 font-bold text-xs tracking-widest uppercase">
-          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> HIPAA COMPLIANT</div>
-          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> REAL-TIME TRIAGE</div>
-        </div>
-      </div>
+              <button 
+                type="button"
+                onClick={() => navigate('/emergency')}
+                className="w-full md:w-auto px-10 py-5 bg-rose-50 text-rose-600 font-black rounded-2xl text-sm hover:bg-rose-100 transition-all border border-rose-100"
+              >
+                Immediate Emergency
+              </button>
+            </div>
+          </form>
 
-      <div className="mt-10 text-slate-400 font-medium text-sm">
-        AegisOS v4.2.0 • Autonomous Healthcare Intelligence
-      </div>
+          <footer className="mt-12 flex items-start gap-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+             <ShieldCheck size={20} className="text-slate-400 shrink-0" />
+             <p className="text-xs text-slate-400 font-medium leading-relaxed uppercase tracking-wider">
+               <span className="font-black text-slate-500">Security Note:</span> Your clinical data is processed by Aegis Node #01. No PII is shared externally during the routing process.
+             </p>
+          </footer>
+        </div>
+      </main>
     </div>
   );
 };
