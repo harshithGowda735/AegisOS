@@ -251,6 +251,8 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
+  selectHospital: (hospital) => set({ bestHospital: hospital }),
+  
   resetStore: () => set({
     symptoms: [], severity: '', triageData: null,
     hospitals: [], bestHospital: null,
