@@ -26,10 +26,10 @@ const EmergencyPage = () => {
 
         <div className="space-y-6 mb-16">
           <button 
-            onClick={() => window.location.href = 'tel:911'}
+            onClick={() => window.location.href = 'tel:108'}
             className="w-full h-24 bg-white text-rose-600 rounded-[2rem] flex items-center justify-center gap-6 text-3xl font-black shadow-2xl hover:scale-[1.02] transition-transform active:scale-95"
           >
-            <Phone size={32} /> Call Ambulance (911)
+            <Phone size={32} /> Call Ambulance (108)
           </button>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

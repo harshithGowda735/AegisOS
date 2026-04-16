@@ -4,10 +4,12 @@ import {
   Users, Stethoscope, CheckCircle2, Clock, RefreshCw,
   Activity, UserCheck, Plus, Calendar, MoreHorizontal,
   Search, Filter, ArrowUpRight, Heart, BedDouble, Trash2,
-  Wifi, AlertTriangle, PenLine
+  Wifi, AlertTriangle, PenLine, ShieldCheck
 } from 'lucide-react';
 import Skeleton from '../components/ui/Skeleton';
 import Button from '../components/ui/Button';
+import CameraNode from '../components/dashboard/CameraNode';
+import { hospitalService } from '../services/hospitalService';
 
 const HospitalDashboard = () => {
   const {
@@ -87,6 +89,7 @@ const HospitalDashboard = () => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
     { id: 'beds', label: 'Beds', icon: BedDouble },
+    { id: 'vision', label: 'Vision Hub', icon: ShieldCheck },
     { id: 'doctors', label: 'Doctors', icon: Stethoscope },
     { id: 'patients', label: 'Patients', icon: Users },
   ];
@@ -207,8 +210,9 @@ const HospitalDashboard = () => {
                                  <td className="px-10 py-6 text-center">
                                     <button 
                                       onClick={() => {
-                                        if (window.confirm("Purge admission record?")) {
-                                          deleteBooking(booking._id);
+                                        const id = booking._id || booking.id;
+                                        if (id && window.confirm("Purge admission record?")) {
+                                          deleteBooking(id);
                                         }
                                       }}
                                       className="text-slate-300 hover:text-rose-500 transition-colors"
@@ -288,6 +292,10 @@ const HospitalDashboard = () => {
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Total Capacity</p>
                       <p className="text-2xl font-black text-slate-900">{selectedHospital.capacity || 0}</p>
                     </div>
+                    <div className="text-center bg-sky-50 px-6 py-2 rounded-2xl border border-sky-100">
+                      <p className="text-[10px] font-black uppercase text-sky-600 tracking-widest mb-1">Facility Income</p>
+                      <p className="text-2xl font-black text-sky-600">₹{selectedHospital.revenue?.toLocaleString() || 0}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -362,12 +370,119 @@ const HospitalDashboard = () => {
           </div>
         )}
 
+        {/* ─── VISION HUB TAB ─── */}
+        {activeTab === 'vision' && (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h2 className="text-4xl font-black tracking-tighter mb-2">Vision Hub</h2>
+                <p className="text-slate-400 font-medium">Aegis OpenCV Intelligence Engine - IoT Central.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                 <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                    OpenCV Engine: Active
+                 </div>
+              </div>
+            </div>
+
+            {/* Hospital Selector */}
+            <div className="flex flex-wrap gap-3 mb-10">
+              {(adminHospitals || []).map(h => (
+                <button
+                  key={h._id}
+                  onClick={() => setSelectedHospital(h)}
+                  className={`px-5 py-3 rounded-2xl text-sm font-black transition-all ${selectedHospital?._id === h._id ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'bg-white border border-slate-100 text-slate-500 hover:border-sky-300'}`}
+                >
+                  {h.name}
+                </button>
+              ))}
+            </div>
+
+            {selectedHospital ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                 {/* IoT Camera Component */}
+                 <div className="lg:col-span-2">
+                    <CameraNode 
+                       hospitalId={selectedHospital._id} 
+                       onUpdate={async (count) => {
+                         try {
+                           await hospitalService.syncFrameMetadata(selectedHospital._id, count);
+                         } catch (err) {
+                           console.warn('Frame sync failed:', err.message);
+                         }
+                       }}
+                    />
+                 </div>
+
+                 {/* Intel Summary */}
+                 <div className="space-y-8">
+                    <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                       <h3 className="text-xl font-black mb-6 flex items-center gap-3">
+                          <Activity className="text-sky-500" size={24} />
+                          Clinical Stress Analysis
+                       </h3>
+                       <div className="space-y-6">
+                          <div>
+                             <div className="flex justify-between mb-2">
+                                <span className="text-[10px] font-black uppercase text-slate-400">Total Load Score</span>
+                                <span className={`text-xs font-black ${getCrowdColor(selectedHospital.crowdScore)}`}>{selectedHospital.crowdScore}%</span>
+                             </div>
+                             <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full transition-all duration-1000 ${selectedHospital.crowdScore > 70 ? 'bg-rose-500' : 'bg-sky-500'}`} style={{ width: `${selectedHospital.crowdScore}%` }}></div>
+                             </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4 pt-4">
+                             <div className="bg-slate-50 p-6 rounded-3xl">
+                                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">OpenCV Count</p>
+                                <p className="text-2xl font-black text-sky-500">
+                                   {selectedHospital.crowdCount || 0}
+                                </p>
+                             </div>
+                             <div className="bg-slate-50 p-6 rounded-3xl">
+                                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Wait List</p>
+                                <p className="text-2xl font-black text-slate-900">
+                                   {recentBookings.filter(b => b.hospitalId === selectedHospital._id).length}
+                                </p>
+                             </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-4">
+                             <div className="bg-slate-50 p-6 rounded-3xl">
+                                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Bed Stress</p>
+                                <p className="text-2xl font-black text-slate-900">
+                                   {Math.round((1 - (selectedHospital.beds.reduce((s,b) => s+b.available, 0) / (selectedHospital.capacity || 1))) * 100)}%
+                                </p>
+                             </div>
+                        </div>
+                     </div>
+                    </div>
+
+                    <div className="bg-sky-500 p-10 rounded-[2.5rem] text-white shadow-xl shadow-sky-500/20 relative overflow-hidden">
+                        <ShieldCheck className="absolute top-10 right-10 text-white/10" size={120} />
+                        <h4 className="text-xl font-black mb-4 relative z-10">Aegis Intelligence</h4>
+                        <p className="text-sm font-medium text-sky-100 leading-relaxed relative z-10">
+                           Our OpenCV engine is analyzing visual density in real-time. This data is combined with doctor shifts and bed availability to calculate the most accurate hospital stress index in the city.
+                        </p>
+                    </div>
+                 </div>
+              </div>
+            ) : (
+                <div className="bg-white p-20 rounded-[3rem] text-center border-2 border-dashed border-slate-200">
+                    <Wifi size={48} className="mx-auto text-slate-200 mb-6" />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Select a hospital to initialize IoT Node</p>
+                </div>
+            )}
+          </div>
+        )}
+
         {/* ─── DOCTORS TAB ─── */}
         {activeTab === 'doctors' && (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 space-y-10">
             <div className="flex items-center justify-between">
                <div>
-                  <h2 className="text-4xl font-black tracking-tighter title-animate mb-2">Medical Staff</h2>
+                  <h2 className="text-4xl font-black tracking-tighter mb-2">Medical Staff</h2>
                   <p className="text-slate-400 font-medium">Manage on-duty personnel and specialists.</p>
                </div>
                <Button icon={Plus} onClick={() => setShowAddDoctor(true)}>Onboard Doctor</Button>
@@ -437,7 +552,6 @@ const HospitalDashboard = () => {
                         <th className="px-10 py-5">Patient</th>
                         <th className="px-6 py-5">Age/Sex</th>
                         <th className="px-6 py-5">Live Severity</th>
-                        <th className="px-6 py-5">Triage ID</th>
                         <th className="px-10 py-5 text-center">Purge</th>
                      </tr>
                   </thead>
@@ -448,11 +562,7 @@ const HospitalDashboard = () => {
                               <p className="font-black text-slate-900">{p.name}</p>
                               <p className="text-[10px] text-slate-400 font-bold">{new Date(p.createdAt).toLocaleDateString()}</p>
                            </td>
-                           <td className="px-6 py-6">
-                              <span className="font-bold text-slate-600">{p.age}Y</span>
-                              <span className="text-slate-300 mx-2">|</span>
-                              <span className="text-[10px] font-black uppercase text-slate-400">{p.gender}</span>
-                           </td>
+                           <td className="px-6 py-6 font-bold text-slate-600">{p.age}Y | {p.gender}</td>
                            <td className="px-6 py-6">
                               <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
                                 p.severity === 'High' ? 'bg-rose-50 text-rose-500 border-rose-100' : 'bg-sky-50 text-sky-500 border-sky-100'
@@ -460,17 +570,17 @@ const HospitalDashboard = () => {
                                 {p.severity || 'Normal'}
                               </span>
                            </td>
-                           <td className="px-6 py-6 font-mono text-xs font-black text-slate-400">
-                              {p._id.slice(-8).toUpperCase()}
-                           </td>
                            <td className="px-10 py-6 text-center">
                               <button 
                                 onClick={() => {
-                                  if (window.confirm("Purge clinical record? This cannot be undone.")) {
-                                    deletePatient(p._id);
-                                  }
+                                   const id = p._id || p.id;
+                                   console.log('Attempting to delete patient:', id);
+                                   if (id && window.confirm(`Are you sure you want to PURGE all records for ${p.name}? This action is irreversible.`)) {
+                                      deletePatient(id);
+                                   }
                                 }}
-                                className="p-2.5 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all"
+                                className="p-2.5 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm active:scale-95"
+                                title="Purge Clinical Record"
                               >
                                  <Trash2 size={16} />
                               </button>
@@ -479,13 +589,6 @@ const HospitalDashboard = () => {
                      ))}
                   </tbody>
                </table>
-
-               {(allPatients || []).length === 0 && (
-                  <div className="p-20 text-center">
-                     <Users size={64} className="mx-auto text-slate-200 mb-6" />
-                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No clinical records found</p>
-                  </div>
-               )}
             </div>
           </div>
         )}

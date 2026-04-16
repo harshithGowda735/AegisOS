@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { hospitalService } from '../services/hospitalService';
@@ -47,6 +48,21 @@ const HealthHub = () => {
     }
   };
 
+  const [recalculating, setRecalculating] = useState(false);
+
+  const handleRecalculate = async () => {
+    if (!currentPatientId) return;
+    setRecalculating(true);
+    try {
+      await hospitalService.recalculateProtocol(currentPatientId);
+      await fetchHubData();
+    } catch (err) {
+      console.error("Recalculate Error:", err);
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -72,12 +88,24 @@ const HealthHub = () => {
     Notification.requestPermission();
   };
 
-  if (!hubData && !userProfile) {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Timeout so we don't block forever if backend is offline
+    const timer = setTimeout(() => setIsLoading(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (hubData || userProfile) setIsLoading(false);
+  }, [hubData, userProfile]);
+
+  if (isLoading && !hubData && !userProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="w-16 h-16 bg-sky-200 rounded-full mb-4"></div>
-          <p className="text-slate-400 font-medium font-sans">Securing your health portal...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-14 h-14 border-4 border-sky-100 border-t-sky-500 rounded-full animate-spin" />
+          <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Loading health data...</p>
         </div>
       </div>
     );
@@ -148,102 +176,128 @@ const HealthHub = () => {
         {/* Left Column: AI Daily Routine */}
         <div className="lg:col-span-2 space-y-8">
           
-          {/* Daily Timeline */}
-          <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
-               <Sparkles className="w-48 h-48" />
-            </div>
+          {hubData?.reports?.length > 0 ? (
+            <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+                  <Sparkles className="w-48 h-48" />
+               </div>
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-sky-50 rounded-2xl text-sky-600">
-                  <Calendar size={24} />
-                </div>
-                <h2 className="text-2xl font-black tracking-tighter">AI Daily Protocol</h2>
-              </div>
-              <div className="px-5 py-2.5 bg-emerald-50 border border-emerald-100 rounded-full text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em]">
-                Live: {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
-              </div>
-            </div>
-
-            <div className="space-y-8 relative">
-              {/* Vertical line connector */}
-              <div className="absolute left-[27px] top-8 bottom-8 w-0.5 bg-slate-100 hidden md:block"></div>
-
-              {/* Breakfast */}
-              <div className="flex flex-col md:flex-row gap-6 group relative z-10">
-                <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100 group-hover:scale-105 transition-all shrink-0">
-                  <Coffee size={28} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">08:00 AM • Morning</h3>
+               <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+                  <div className="flex items-center gap-3">
+                  <div className="p-3 bg-sky-50 rounded-2xl text-sky-600">
+                     <Calendar size={24} />
                   </div>
-                  <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Nutritional Guidance</p>
-                    <p className="text-lg font-bold text-slate-800 leading-tight">{routine.foodRoutine.breakfast}</p>
-                    
-                    {(routine.medications || []).filter(m => m.time?.toLowerCase().includes('breakfast') || m.time?.toLowerCase().includes('morning')).map((m, i) => (
-                      <div key={i} className="mt-4 p-4 bg-sky-50 border border-sky-100 rounded-2xl flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Pill className="text-sky-600" size={18} />
-                          <p className="font-bold text-sky-900 text-sm">{m.name} <span className="text-[10px] opacity-60">({m.dosage})</span></p>
+                  <h2 className="text-2xl font-black tracking-tighter">AI Daily Protocol</h2>
+                  </div>
+                  <div className="flex items-center gap-3">
+                  <div className="px-5 py-2.5 bg-emerald-50 border border-emerald-100 rounded-full text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em]">
+                     Live: {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short' })}
+                  </div>
+                  <button 
+                     onClick={handleRecalculate}
+                     disabled={recalculating}
+                     className="p-2.5 bg-sky-50 text-sky-600 rounded-full hover:bg-sky-500 hover:text-white transition-all disabled:opacity-50"
+                     title="Recalculate Protocol with AI"
+                  >
+                     <RefreshCw size={16} className={recalculating ? 'animate-spin' : ''} />
+                  </button>
+                  </div>
+               </div>
+
+               <div className="space-y-8 relative">
+                  {/* Vertical line connector */}
+                  <div className="absolute left-[27px] top-8 bottom-8 w-0.5 bg-slate-100 hidden md:block"></div>
+
+                  {/* Breakfast */}
+                  <div className="flex flex-col md:flex-row gap-6 group relative z-10">
+                  <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100 group-hover:scale-105 transition-all shrink-0">
+                     <Coffee size={28} />
+                  </div>
+                  <div className="flex-1">
+                     <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">08:00 AM • Morning</h3>
+                     </div>
+                     <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Nutritional Guidance</p>
+                        <p className="text-lg font-bold text-slate-800 leading-tight">{routine.foodRoutine.breakfast}</p>
+                        
+                        {(routine.medications || []).filter(m => m.time?.toLowerCase().includes('breakfast') || m.time?.toLowerCase().includes('morning')).map((m, i) => (
+                        <div key={i} className="mt-4 p-4 bg-sky-50 border border-sky-100 rounded-2xl flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                              <Pill className="text-sky-600" size={18} />
+                              <p className="font-bold text-sky-900 text-sm">{m.name} <span className="text-[10px] opacity-60">({m.dosage})</span></p>
+                           </div>
+                           <CheckCircle2 className="text-sky-300" size={20} />
                         </div>
-                        <CheckCircle2 className="text-sky-300" size={20} />
-                      </div>
-                    ))}
+                        ))}
+                     </div>
                   </div>
-                </div>
-              </div>
+                  </div>
 
-              {/* Lunch */}
-              <div className="flex flex-col md:flex-row gap-6 group relative z-10">
-                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 group-hover:scale-105 transition-all shrink-0">
-                  <Activity size={28} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">01:30 PM • Mid-Day</h3>
+                  {/* Lunch */}
+                  <div className="flex flex-col md:flex-row gap-6 group relative z-10">
+                  <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 group-hover:scale-105 transition-all shrink-0">
+                     <Activity size={28} />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
-                      <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Fuel Plan</p>
-                      <p className="text-sm font-bold text-slate-800">{routine.foodRoutine.lunch}</p>
-                    </div>
-                    <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-[2rem] flex flex-col justify-center">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Footprints className="text-indigo-600" size={18} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Activity & Fitness</span>
-                      </div>
-                      <p className="font-bold text-indigo-900 text-sm leading-tight mb-2">{routine.lifestyle.walking}</p>
-                      {routine.lifestyle.fitness && (
-                        <div className="mt-2 pt-2 border-t border-indigo-200">
-                           <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Targeted Exercise</p>
-                           <p className="text-xs font-bold text-indigo-800">{routine.lifestyle.fitness}</p>
+                  <div className="flex-1">
+                     <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">01:30 PM • Mid-Day</h3>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Fuel Plan</p>
+                        <p className="text-sm font-bold text-slate-800">{routine.foodRoutine.lunch}</p>
                         </div>
-                      )}
-                    </div>
+                        <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-[2rem] flex flex-col justify-center">
+                        <div className="flex items-center gap-3 mb-2">
+                           <Footprints className="text-indigo-600" size={18} />
+                           <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Activity & Fitness</span>
+                        </div>
+                        <p className="font-bold text-indigo-900 text-sm leading-tight mb-2">{routine.lifestyle.walking}</p>
+                        {routine.lifestyle.fitness && (
+                           <div className="mt-2 pt-2 border-t border-indigo-200">
+                              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Targeted Exercise</p>
+                              <p className="text-xs font-bold text-indigo-800">{routine.lifestyle.fitness}</p>
+                           </div>
+                        )}
+                        </div>
+                     </div>
                   </div>
-                </div>
-              </div>
+                  </div>
 
-              {/* Evening */}
-              <div className="flex flex-col md:flex-row gap-6 group relative z-10">
-                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100 group-hover:scale-105 transition-all shrink-0">
-                  <Clock size={28} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">08:00 PM • Night</h3>
+                  {/* Evening */}
+                  <div className="flex flex-col md:flex-row gap-6 group relative z-10">
+                  <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100 group-hover:scale-105 transition-all shrink-0">
+                     <Clock size={28} />
                   </div>
-                  <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
-                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Dinner Insight</p>
-                    <p className="text-sm font-bold text-slate-800">{routine.foodRoutine.dinner}</p>
+                  <div className="flex-1">
+                     <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">08:00 PM • Night</h3>
+                     </div>
+                     <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 group-hover:bg-white group-hover:shadow-xl group-hover:shadow-slate-200/50 transition-all">
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">Dinner Insight</p>
+                        <p className="text-sm font-bold text-slate-800">{routine.foodRoutine.dinner}</p>
+                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          </section>
+                  </div>
+               </div>
+            </section>
+          ) : (
+            <section className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] p-12 text-center">
+               <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mx-auto mb-6 text-slate-300">
+                  <FileText size={32} />
+               </div>
+               <h3 className="text-xl font-black text-slate-900 mb-3">Awaiting Clinical Evidence</h3>
+               <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed mb-8">
+                  Your AI Daily Protocol requires at least one medical report (Blood Test, Diabetes Scan) to generate a personalized health regimen and clinical reminders.
+               </p>
+               <label className="inline-flex items-center gap-3 px-8 py-3.5 bg-sky-500 hover:bg-sky-400 text-white rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer transition-all active:scale-95 shadow-lg shadow-sky-500/20">
+                  <Upload size={16} />
+                  Initialize Analysis
+                  <input type="file" className="hidden" onChange={handleFileUpload} accept="application/pdf,image/*" />
+               </label>
+            </section>
+          )}
 
           {/* User Bio Stats Section */}
           <section className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden group">

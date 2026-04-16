@@ -23,6 +23,7 @@ const hospitalSchema = new mongoose.Schema({
   capacity: { type: Number, default: 50 }, // max simultaneous visitors
   rating: { type: Number, default: 4.0 },
   tags: [{ type: String }], // e.g., ['Emergency', 'ICU', 'Cardiology']
+  revenue: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
   lastUpdated: { type: Date, default: Date.now },
 }, { timestamps: true });

@@ -16,7 +16,7 @@ import Button from '../components/ui/Button';
 
 
 const HospitalResults = () => {
-  const { triageData, hospitals, bestHospital, isLoading, resetSession } = useAppStore();
+  const { triageData, hospitals, bestHospital, isLoading, resetStore } = useAppStore();
   const navigate = useNavigate();
 
   if (isLoading || !triageData) {
@@ -49,7 +49,7 @@ const HospitalResults = () => {
         </div>
         <div className="flex gap-4">
            <Button onClick={() => navigate('/emergency')} variant="danger" className="rounded-xl px-8">Immediate ER</Button>
-           <Button onClick={resetSession} variant="secondary" icon={RefreshCcw} className="rounded-xl">Recalculate</Button>
+           <Button onClick={() => { resetStore(); navigate('/triage'); }} variant="secondary" icon={RefreshCcw} className="rounded-xl">Recalculate</Button>
         </div>
       </header>
 
@@ -92,7 +92,9 @@ const HospitalResults = () => {
                 <h2 className="text-3xl font-black tracking-tight text-slate-900">Regional Facilities</h2>
                 <div className="flex gap-4 text-xs font-black uppercase tracking-widest text-slate-400">
                    <div className="flex items-center gap-1.5"><MapPin size={12} /> Near You</div>
-                   <div className="flex items-center gap-1.5"><Sparkles size={12} className="text-sky-500" /> AI Ranked</div>
+                   <div className="flex items-center gap-1.5 px-3 py-1 bg-sky-50 text-sky-600 rounded-full border border-sky-100 uppercase tracking-widest font-black">
+                      <Sparkles size={12} /> Vision Node Ranked
+                   </div>
                 </div>
              </div>
 

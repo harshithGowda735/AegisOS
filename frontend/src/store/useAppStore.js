@@ -129,6 +129,10 @@ export const useAppStore = create((set, get) => ({
       };
 
       const response = await hospitalService.bookAppointment(payload);
+      
+      // Refresh admin data immediately so dashboard shows the new patient/booking
+      await get().fetchAdminData();
+
       set({
         booking: response.data,
         ambulanceDispatched: response.ambulanceAssigned || null,
@@ -222,6 +226,7 @@ export const useAppStore = create((set, get) => ({
   deletePatient: async (id) => {
     try {
       set({ isLoading: true });
+      console.log(`[STORE] Purging patient: ${id}`);
       await hospitalService.deletePatient(id);
       await get().fetchAdminData();
       return true;
@@ -235,6 +240,7 @@ export const useAppStore = create((set, get) => ({
   deleteBooking: async (id) => {
     try {
       set({ isLoading: true });
+      console.log(`[STORE] Purging booking: ${id}`);
       await hospitalService.deleteBooking(id);
       await get().fetchAdminData();
       return true;

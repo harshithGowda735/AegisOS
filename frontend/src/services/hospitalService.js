@@ -1,4 +1,5 @@
 import api from './api';
+import axios from 'axios';
 
 export const hospitalService = {
   // Hospitals
@@ -32,9 +33,14 @@ export const hospitalService = {
     });
   },
   getHealthHubData: (patientId) => api.get(`/user/health-hub/${patientId}`),
+  recalculateProtocol: (patientId) => api.post(`/user/health-hub/${patientId}/recalculate`),
   getAllPatients: () => api.get('/user/patients'),
   deletePatient: (id) => api.delete(`/user/patients/${id}`),
   deleteBooking: (id) => api.delete(`/user/bookings/${id}`),
+
+  // AI Engine (IoT Nodes)
+  getCrowdData: (hospitalId) => axios.get(`http://localhost:8000/crowd/${hospitalId}`),
+  syncFrameMetadata: (hospitalId, count) => axios.post(`http://localhost:8000/analyze-frame/${hospitalId}`, { count }),
 
   // Ambulances
   getAmbulances: () => api.get('/ambulances'),

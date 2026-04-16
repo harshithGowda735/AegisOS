@@ -9,6 +9,7 @@ import EmergencyPage from '../pages/EmergencyPage';
 import HospitalDashboard from '../pages/HospitalDashboard';
 import HealthHub from '../pages/HealthHub';
 import { useAppStore } from '../store/useAppStore';
+import AegisAssist from '../components/ai/AegisAssist';
 
 const GlobalNavigation = () => {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ const AppRoutes = () => {
         {/* Redirect unknown routes back to the main portal */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <AegisAssist />
     </Router>
   );
 };

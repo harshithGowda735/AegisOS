@@ -148,33 +148,56 @@ async function seedBangaloreData() {
   console.log('🚑 Seeded 4 ambulance units.');
 }
 
-// ── AI Engine Crowd Fetch ──────────────────────────────────────
-async function fetchCrowdFromAI() {
-  try {
-    const res = await axios.get(`${AI_ENGINE_URL}/crowd`, { timeout: 2000 });
-    return res.data.crowd_count || 0;
-  } catch {
-    return Math.floor(Math.random() * 20) + 2; // Fallback random
-  }
-}
 
-// ── Background: Update crowd scores every 10s ───────────────────
+// ── Background: Aegis Intelligence Nexus (Update crowd scores every 10s) ───
 setInterval(async () => {
   try {
-    const crowdCount = await fetchCrowdFromAI();
     const hospitals = await Hospital.find({ isActive: true });
+    
     for (const h of hospitals) {
-      // Simulate per-hospital variation based on global camera count
-      const variation = Math.floor(Math.random() * 20) - 10;
-      h.crowdCount = Math.max(0, crowdCount + variation);
-      h.crowdScore = Math.min(100, Math.round((h.crowdCount / h.capacity) * 100));
+      // 1. Fetch Visual Data from AI Engine (OpenCV)
+      let cvCount = 0;
+      try {
+        const res = await axios.get(`${AI_ENGINE_URL}/crowd/${h._id}`, { timeout: 1500 });
+        cvCount = res.data.crowd_count || 0;
+      } catch {
+        cvCount = Math.floor(Math.random() * 15) + 5; // Fallback
+      }
+
+      // 2. Fetch Clinical Data
+      const activeBookings = await Booking.countDocuments({ hospitalId: h._id });
+      const totalAvailBeds = h.beds.reduce((s, b) => s + b.available, 0);
+      const doctorsOnDuty = h.doctorsAvailable || 1;
+
+      // 3. Aegis Intelligence Formula
+      // Higher score = More crowded/stressed
+      // Factors: 
+      // - CV Count (Visual Load): 40%
+      // - Active Bookings (Administrative Load): 30%
+      // - Bed Availability (Capacity Stress): 20%
+      // - Doctor Availability (Personnel Stress): 10%
+      
+      const visualLoad = Math.min(100, (cvCount / (h.capacity || 50)) * 100);
+      const adminLoad = Math.min(100, (activeBookings / 20) * 100);
+      const bedStress = Math.min(100, (1 - (totalAvailBeds / (h.capacity || 100))) * 100);
+      const doctorStress = Math.min(100, (1 - (doctorsOnDuty / (h.totalDoctors || 10))) * 100);
+
+      const compositeScore = Math.round(
+        (visualLoad * 0.4) + 
+        (adminLoad * 0.3) + 
+        (bedStress * 0.2) + 
+        (doctorStress * 0.1)
+      );
+
+      h.crowdCount = cvCount;
+      h.crowdScore = compositeScore;
       h.lastUpdated = new Date();
       await h.save();
     }
   } catch (e) {
-    // Silent fail — don't crash the server
+    console.error('Nexus Sync Error:', e.message);
   }
-}, 10000);
+}, 3000);
 
 // ═══════════════════════════════════════════════════════════════
 // ROUTES
@@ -262,9 +285,6 @@ app.post('/api/hospitals/decision', async (req, res) => {
   try {
     const { symptoms, severity, patientId, userLocation } = req.body;
 
-    // Fetch live crowd from AI engine
-    const liveCrowd = await fetchCrowdFromAI();
-
     let hospitals = await Hospital.find({ isActive: true });
 
     // Augment with distance and crowd-aware scoring
@@ -274,21 +294,21 @@ app.post('/api/hospitals/decision', async (req, res) => {
         ? calculateDistance(userLocation.lat, userLocation.lng, h.coordinates.lat, h.coordinates.lng)
         : 999;
 
-      // Crowd score variation per hospital
-      const crowdCount = Math.max(0, liveCrowd + Math.floor(Math.random() * 10) - 5);
-      const crowdScore = Math.min(100, Math.round((crowdCount / h.capacity) * 100));
+      // Use the live crowdScore already computed by the Nexus background task
+      const crowdScore = h.crowdScore || Math.min(100, Math.round((Math.random() * 15 + 10)));
+      const crowdCount = h.crowdCount || Math.floor(Math.random() * 15) + 3;
 
-      // ── Decision Logic ──────────────────────────────────
+      // ── Decision Intelligence ──
       // Reject if no beds or no doctors
       if (totalAvail === 0) return null;
       if (h.doctorsAvailable === 0) return null;
-      // Reject if crowd + bookings > capacity
-      if (crowdScore >= 90) return null;
+      // Reject if crowd is at critical capacity
+      if (crowdScore >= 95) return null;
 
-      // Priority score (lower = better)
-      const score = dist * 0.5 + crowdScore * 0.3 + (100 - totalAvail) * 0.2;
+      // COMPOSITE INDEX: Proximity (50%) + OpenCV Wait (40%) + Bed Headroom (10%)
+      const score = (dist * 10) * 0.5 + crowdScore * 0.4 + (100 - (totalAvail / (h.capacity || 1) * 100)) * 0.1;
 
-      const baseWait = Math.round((crowdScore / 10) * 5 + 5);
+      const baseWait = Math.round((crowdScore / 10) * 5 + 3);
 
       return {
         id: h._id.toString(),
@@ -329,7 +349,7 @@ app.post('/api/hospitals/decision', async (req, res) => {
 // ── Book Appointment + Ambulance Dispatch ─────────────────────
 app.post('/api/hospitals/book', async (req, res) => {
   try {
-    const { hospitalId, hospitalName, name, time, patientId, severity, userLocation } = req.body;
+    const { hospitalId, hospitalName, name, time, patientId, severity, userLocation, amount } = req.body;
     const bookingId = `AJS-${Math.floor(Math.random() * 90000) + 10000}`;
 
     const booking = new Booking({
@@ -339,12 +359,17 @@ app.post('/api/hospitals/book', async (req, res) => {
       patientName: name || 'Patient',
       appointmentTime: time || new Date().toISOString(),
       bookingId,
+      amount: amount || 0,
+      paymentStatus: 'Paid'
     });
     await booking.save();
 
-    // Decrement bed availability
+    // Decrement bed availability & Increment Revenue
     await Hospital.findByIdAndUpdate(hospitalId, {
-      $inc: { 'beds.$[gen].available': -1 },
+      $inc: { 
+        'beds.$[gen].available': -1,
+        revenue: amount || 0
+      },
     }, {
       arrayFilters: [{ 'gen.type': 'General' }],
     }).catch(() => {});
@@ -378,9 +403,10 @@ app.post('/api/hospitals/book', async (req, res) => {
 
     // ── Update Patient Record in Registry ──────────
     if (patientId) {
+      const historyStr = `[Booking ${bookingId}] Appointment secured at ${hospitalName} (${new Date().toLocaleDateString()})`;
       await Patient.findByIdAndUpdate(patientId, {
         severity: severity || 'Moderate',
-        $push: { medicalHistory: `Visited ${hospitalName} (${new Date().toLocaleDateString()})` }
+        $push: { medicalHistory: historyStr }
       }).catch(() => {});
     }
 
@@ -501,14 +527,15 @@ app.get('/api/admin/doctors', async (req, res) => {
 
 app.get('/api/admin/stats', async (req, res) => {
   try {
-    const [totalPatients, highSeverity, totalBookings, hospitals] = await Promise.all([
+    const [totalPatients, highSeverity, totalBookings, hospitals, revenueData] = await Promise.all([
       Patient.countDocuments(),
       Patient.countDocuments({ severity: 'High' }),
       Booking.countDocuments(),
       Hospital.find({ isActive: true }),
+      Booking.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }])
     ]);
 
-    const totalRevenue = totalBookings * 2999;
+    const totalRevenue = revenueData.length > 0 ? revenueData[0].total : 0;
     const totalBeds = hospitals.reduce((s, h) => s + h.beds.reduce((ss, b) => ss + b.total, 0), 0);
     const availBeds = hospitals.reduce((s, h) => s + h.beds.reduce((ss, b) => ss + b.available, 0), 0);
 

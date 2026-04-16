@@ -19,8 +19,8 @@ const BookingPage = () => {
   } = useAppStore();
   const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
-
   const assignedDoctor = doctors[0] || { name: 'Dr. Ramnik Patel', specialty: 'General Physician' };
+  const [fee] = useState(() => Math.floor(Math.random() * 51) + 50); // Random fee between 50 and 100
 
   const handleBooking = async () => {
     setIsConfirming(true);
@@ -28,6 +28,7 @@ const BookingPage = () => {
     const success = await confirmBooking({
       doctorName: assignedDoctor.name,
       appointmentType: 'In-person',
+      amount: fee + 15, // Including tax
     });
     // Add success feedback
     if (success) {
@@ -304,18 +305,18 @@ const BookingPage = () => {
               <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Payment Summary</h2>
               <div className="space-y-5 pb-8 border-b border-slate-200 mb-8">
                 <div className="flex justify-between items-center text-slate-500 font-bold text-sm">
-                  <span>Consultation Fee</span><span className="text-slate-900">₹999</span>
+                  <span>Consultation Fee</span><span className="text-slate-900">₹{fee}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-500 font-bold text-sm">
-                  <span>Service Tax (18%)</span><span className="text-slate-900">₹199</span>
+                  <span>Service Tax (Node Sync)</span><span className="text-slate-900">₹15</span>
                 </div>
                 <div className="flex justify-between items-center text-emerald-500 font-black text-sm">
-                  <span>Aegis Discount</span><span>– ₹199</span>
+                  <span>Aegis Intelligence Rebate</span><span>– ₹15</span>
                 </div>
               </div>
               <div className="flex justify-between items-center mb-10">
                 <span className="text-xl font-black text-slate-900">Total Due</span>
-                <span className="text-4xl font-black text-sky-600 tracking-tighter">₹2,999</span>
+                <span className="text-4xl font-black text-sky-600 tracking-tighter">₹{fee}</span>
               </div>
 
               <Button
