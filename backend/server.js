@@ -398,6 +398,7 @@ setInterval(async () => {
             amb.location.lat += (target.lat - amb.location.lat) * ratio;
             amb.location.lng += (target.lng - amb.location.lng) * ratio;
         }
+        amb.markModified('location');
         await amb.save();
       }
     } catch (e) {}
