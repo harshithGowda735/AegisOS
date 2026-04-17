@@ -51,7 +51,7 @@ const HospitalDashboard = () => {
 
   const handleAddDoctor = async (e) => {
     e.preventDefault();
-    if (!newDoctor.name || !newDoctor.specialty) return;
+    if (!newDoctor.name || !newDoctor.specialty || !newDoctor.education) return;
     const success = await registerDoctor(newDoctor);
     if (success) {
       setShowAddDoctor(false);
@@ -678,7 +678,12 @@ const HospitalDashboard = () => {
                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Specialty</label>
                        <input type="text" placeholder="Cardiology" value={newDoctor.specialty} onChange={e => setNewDoctor({...newDoctor, specialty: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl outline-none" />
                     </div>
-                    <div className="flex items-end gap-3">
+                                         <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Education</label>
+                        <input type="text" placeholder="MBBS, MD" value={newDoctor.education} onChange={e => setNewDoctor({...newDoctor, education: e.target.value})} className="w-full bg-slate-50 p-5 rounded-2xl outline-none font-bold text-sm" />
+                     </div>
+                     <div className="flex items-end gap-3">
+
                        <Button type="submit" className="flex-1 py-5">Register</Button>
                        <Button type="button" variant="ghost" className="py-5" onClick={() => setShowAddDoctor(false)}>Cancel</Button>
                     </div>
