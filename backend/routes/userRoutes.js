@@ -268,7 +268,7 @@ router.post('/analyze-prescription', upload.single('prescription'), async (req, 
       recommendation: "Clinical evaluation complete. No critical mismatches detected."
     };
 
-    const apiKey = process.env.PRESCRIPTION_API_KEY || process.env.PROTOCOL_API_KEY;
+    let apiKey = process.env.PRESCRIPTION_API_KEY || process.env.PROTOCOL_API_KEY;
 
     if (apiKey && apiKey !== 'sk-your-api-key-here') {
       const prompt = `
@@ -296,13 +296,20 @@ router.post('/analyze-prescription', upload.single('prescription'), async (req, 
            set isCritical: true, severity: 'High', and message: 'CAUTION: Medication mismatch detected. Reported symptoms (Cough) do not align with prescribed therapy. Re-evaluation recommended.'
       `;
 
-      const aiResponse = await PRESCRIPTION_AI.chat.completions.create({
-        model: PRESCRIPTION_MODEL,
-        messages: [{ role: "system", content: "You are a clinical pharmacologist AI. You verify alignment between patient condition/symptoms and prescribed drugs." }, { role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
-      structuredAnalysis = JSON.parse(aiResponse.choices[0].message.content);
-    } else {
+      try {
+        const aiResponse = await PRESCRIPTION_AI.chat.completions.create({
+          model: PRESCRIPTION_MODEL,
+          messages: [{ role: "system", content: "You are a clinical pharmacologist AI. You verify alignment between patient condition/symptoms and prescribed drugs." }, { role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        });
+        structuredAnalysis = JSON.parse(aiResponse.choices[0].message.content);
+      } catch (aiErr) {
+        console.warn("AI Provider throttled. Switching to Heuristic Mode.");
+        apiKey = null;
+      }
+    } 
+    
+    if (!apiKey || apiKey === 'sk-your-api-key-here') {
       // 🚀 INTELLIGENT FALLBACK: Heuristic Detection
       const commonMeds = ['Dolo', 'Paracetamol', 'Metformin', 'Amlodipine', 'Telmisartan', 'Atorvastatin', 'Aspirin', 'Azithromycin', 'Pantoprazole'];
       const detected = commonMeds.filter(med => rawText.toLowerCase().includes(med.toLowerCase()));
