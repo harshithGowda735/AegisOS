@@ -156,7 +156,7 @@ const HealthHub = () => {
       if (file) {
         // Advanced OCR Analysis
         const response = await hospitalService.analyzePrescription(condition, file);
-        setSafetyResult(response.data.analysis);
+        setSafetyResult(response.analysis);
       } else {
         // Manual Text Fallback
         const isHeartPain = condition.toLowerCase().includes('heart') || condition.toLowerCase().includes('chest');
