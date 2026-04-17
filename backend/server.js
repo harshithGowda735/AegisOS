@@ -288,10 +288,37 @@ app.get('/api/admin/doctors', async (req, res) => {
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
+app.post('/api/admin/doctors', async (req, res) => {
+    try {
+      const doctor = new Doctor(req.body);
+      await doctor.save();
+      res.status(201).json(doctor);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
 app.get('/api/admin/hospitals', async (req, res) => {
     try {
       const hospitals = await Hospital.find();
       res.json(hospitals);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+app.post('/api/admin/hospitals/:id/beds', async (req, res) => {
+    try {
+      const { type, total, available } = req.body;
+      const hospital = await Hospital.findById(req.params.id);
+      hospital.beds.push({ type, total, available });
+      await hospital.save();
+      res.json(hospital);
+    } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+app.delete('/api/admin/hospitals/:id/beds/:type', async (req, res) => {
+    try {
+      const hospital = await Hospital.findById(req.params.id);
+      hospital.beds = hospital.beds.filter(b => b.type !== req.params.type);
+      await hospital.save();
+      res.json(hospital);
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
