@@ -15,12 +15,12 @@ const Patient = require('../models/Patient');
 const Booking = require('../models/Booking');
 
 // Task-Specific AI Nodes
-const PROTOCOL_AI = new OpenAI({ 
+const PROTOCOL_AI = new OpenAI({
   apiKey: process.env.PROTOCOL_API_KEY,
   baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"
 });
 
-const PRESCRIPTION_AI = new OpenAI({ 
+const PRESCRIPTION_AI = new OpenAI({
   apiKey: process.env.PRESCRIPTION_API_KEY,
   baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"
 });
@@ -40,7 +40,7 @@ const upload = multer({ storage });
 async function generateHealthPlan(patient, additionalPrompt = "") {
   try {
     const reportHistory = patient.reports.map(r => `[${r.type}]: ${r.aiSummary}`).join('; ');
-    
+
     const prompt = `
       You are an expert AI Physician and Clinical Nutritionist. 
       Generate a UNIQUE, high-precision daily health protocol for the patient.
@@ -104,10 +104,10 @@ async function generateHealthPlan(patient, additionalPrompt = "") {
     const isDiabetic = history.some(h => h.includes('dia') || h.includes('sugar') || h.includes('glucose'));
     const isHypertensive = history.some(h => h.includes('hyper') || h.includes('bp') || h.includes('pressure') || h.includes('tension'));
     const isCardiac = history.some(h => h.includes('heart') || h.includes('card') || h.includes('valve'));
-    
+
     const reportsSummary = (patient.reports || []).map(r => r.aiSummary.toLowerCase()).join(' ');
     const isHighRisk = reportsSummary.includes('high') || reportsSummary.includes('critical') || reportsSummary.includes('alert') || patient.severity === 'High';
-    
+
     // UI Variation Matrix: Ensures different data = different UI
     let breakfast = "Nutrient-dense protein bowl with flaxseeds and berries";
     let lunch = "Mediterranean chickpea salad with olive oil dressing";
@@ -117,19 +117,19 @@ async function generateHealthPlan(patient, additionalPrompt = "") {
     let fitness = patient.age > 50 ? "Resistance band stretches for mobility" : "Standard bodyweight circuits (10 min)";
 
     if (isDiabetic || isHighRisk) {
-       breakfast = "Steel-cut oats with zero-glycemic cinnamon and walnuts";
-       lunch = "Low-GI leafy salad with grilled tofu and olive oil";
-       dinner = "Zucchini noodles with baked turkey breast and snap peas";
-       walking = "45-minute post-meal brisk walk (Metabolic Clear)";
-       maintenance = "Blood glucose check: Pre-breakfast and Post-Dinner";
-       fitness = "Diabetic-safe lower body stability exercises";
+      breakfast = "Steel-cut oats with zero-glycemic cinnamon and walnuts";
+      lunch = "Low-GI leafy salad with grilled tofu and olive oil";
+      dinner = "Zucchini noodles with baked turkey breast and snap peas";
+      walking = "45-minute post-meal brisk walk (Metabolic Clear)";
+      maintenance = "Blood glucose check: Pre-breakfast and Post-Dinner";
+      fitness = "Diabetic-safe lower body stability exercises";
     } else if (isHypertensive || isCardiac) {
-       breakfast = "Low-sodium oatmeal with chia seeds and bananas";
-       lunch = "DASH-compliant vegetable soup with steamed mackerel";
-       dinner = "Baked chicken breast (no-salt herb crust) with asparagus";
-       walking = "20-minute light strolling after every meal";
-       maintenance = "Twice-daily BP monitoring (AM/PM)";
-       fitness = "Breathing-focused Vinyasa yoga (Pressure Control)";
+      breakfast = "Low-sodium oatmeal with chia seeds and bananas";
+      lunch = "DASH-compliant vegetable soup with steamed mackerel";
+      dinner = "Baked chicken breast (no-salt herb crust) with asparagus";
+      walking = "20-minute light strolling after every meal";
+      maintenance = "Twice-daily BP monitoring (AM/PM)";
+      fitness = "Breathing-focused Vinyasa yoga (Pressure Control)";
     }
 
     return {
@@ -201,7 +201,7 @@ router.post('/upload-report', upload.single('report'), async (req, res) => {
       const ocrResult = await Tesseract.recognize(file.path, 'eng');
       extractedText = ocrResult.data.text;
     } else {
-      extractedText = 'PDF Analysis Node #01 Active - Context extracted.'; 
+      extractedText = 'PDF Analysis Node #01 Active - Context extracted.';
     }
 
     // 2. AI Analysis of the text
@@ -209,7 +209,7 @@ router.post('/upload-report', upload.single('report'), async (req, res) => {
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
     let aiSummary = "Report data ingested into clinical database.";
-    
+
     try {
       if (process.env.PROTOCOL_API_KEY) {
         const aiResponse = await PROTOCOL_AI.chat.completions.create({
@@ -235,7 +235,7 @@ router.post('/upload-report', upload.single('report'), async (req, res) => {
     };
 
     patient.reports.push(reportData);
-    
+
     // 3. Update the health plan based on new data
     const updatedPlan = await generateHealthPlan(patient, `The latest report says: ${aiSummary}`);
     patient.healthPlan = { ...updatedPlan, lastUpdated: new Date() };
@@ -307,13 +307,13 @@ router.post('/analyze-prescription', upload.single('prescription'), async (req, 
         console.warn("AI Provider throttled. Switching to Heuristic Mode.");
         apiKey = null;
       }
-    } 
-    
+    }
+
     if (!apiKey || apiKey === 'sk-your-api-key-here') {
       // 🚀 INTELLIGENT FALLBACK: Heuristic Detection
       const commonMeds = ['Dolo', 'Paracetamol', 'Metformin', 'Amlodipine', 'Telmisartan', 'Atorvastatin', 'Aspirin', 'Azithromycin', 'Pantoprazole'];
       const detected = commonMeds.filter(med => rawText.toLowerCase().includes(med.toLowerCase()));
-      
+
       structuredAnalysis.medications = detected.map(m => ({
         name: m, dosage: "Extracting...", frequency: "See OCR", notes: "Heuristic Match"
       }));
@@ -324,7 +324,7 @@ router.post('/analyze-prescription', upload.single('prescription'), async (req, 
 
       const isHeartPain = (condition || "").toLowerCase().includes('heart') || (condition || "").toLowerCase().includes('chest');
       const isDolo = rawText.toLowerCase().includes('dolo') || rawText.toLowerCase().includes('paracetamol');
-      
+
       if (isHeartPain && isDolo) {
         structuredAnalysis.safetyAlert = {
           isCritical: true,

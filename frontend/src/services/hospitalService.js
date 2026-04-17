@@ -3,32 +3,32 @@ import axios from 'axios';
 
 export const hospitalService = {
   // Hospitals
-  getHospitals: (params) => api.get('/hospitals', { params }),
-  getHospitalById: (id) => api.get(`/hospitals/${id}`),
-  analyzeSymptoms: (data) => api.post('/analyze/symptoms', data),
-  getDecision: (data) => api.post('/hospitals/decision', data),
-  bookAppointment: (data) => api.post('/hospitals/book', data),
-  createPatient: (data) => api.post('/patients', data),
+  getHospitals: (params) => api.get('hospitals', { params }),
+  getHospitalById: (id) => api.get(`hospitals/${id}`),
+  analyzeSymptoms: (data) => api.post('analyze/symptoms', data),
+  getDecision: (data) => api.post('hospitals/decision', data),
+  bookAppointment: (data) => api.post('hospitals/book', data),
+  createPatient: (data) => api.post('patients', data),
 
   // Admin
-  getAdminStats: () => api.get('/admin/stats'),
-  getRecentBookings: () => api.get('/admin/bookings'),
-  getDoctors: () => api.get('/admin/doctors'),
-  addDoctor: (data) => api.post('/admin/doctors', data),
-  getAdminHospitals: () => api.get('/admin/hospitals'),
+  getAdminStats: () => api.get('admin/stats'),
+  getRecentBookings: () => api.get('admin/bookings'),
+  getDoctors: () => api.get('admin/doctors'),
+  addDoctor: (data) => api.post('admin/doctors', data),
+  getAdminHospitals: () => api.get('admin/hospitals'),
 
   // Bed management
-  updateBeds: (hospitalId, data) => api.patch(`/admin/hospitals/${hospitalId}/beds`, data),
-  addBedType: (hospitalId, data) => api.post(`/admin/hospitals/${hospitalId}/beds`, data),
-  removeBedType: (hospitalId, type) => api.delete(`/admin/hospitals/${hospitalId}/beds/${type}`),
+  updateBeds: (hospitalId, data) => api.patch(`admin/hospitals/${hospitalId}/beds`, data),
+  addBedType: (hospitalId, data) => api.post(`admin/hospitals/${hospitalId}/beds`, data),
+  removeBedType: (hospitalId, type) => api.delete(`admin/hospitals/${hospitalId}/beds/${type}`),
 
   // User Health Platform
-  updateUserProfile: (profile) => api.post('/user/profile', profile),
+  updateUserProfile: (profile) => api.post('user/profile', profile),
   uploadReport: (patientId, file) => {
     const formData = new FormData();
     formData.append('report', file);
     formData.append('patientId', patientId);
-    return api.post('/user/upload-report', formData, {
+    return api.post('user/upload-report', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
@@ -36,15 +36,15 @@ export const hospitalService = {
     const formData = new FormData();
     formData.append('prescription', file);
     formData.append('condition', condition);
-    return api.post('/user/analyze-prescription', formData, {
+    return api.post('user/analyze-prescription', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  getHealthHubData: (patientId) => api.get(`/user/health-hub/${patientId}`),
-  recalculateProtocol: (patientId) => api.post(`/user/health-hub/${patientId}/recalculate`),
-  getAllPatients: () => api.get('/user/patients'),
-  deletePatient: (id) => api.delete(`/user/patients/${id}`),
-  deleteBooking: (id) => api.delete(`/user/bookings/${id}`),
+  getHealthHubData: (patientId) => api.get(`user/health-hub/${patientId}`),
+  recalculateProtocol: (patientId) => api.post(`user/health-hub/${patientId}/recalculate`),
+  getAllPatients: () => api.get('user/patients'),
+  deletePatient: (id) => api.delete(`user/patients/${id}`),
+  deleteBooking: (id) => api.delete(`user/bookings/${id}`),
 
   // AI Engine (IoT Nodes) - Port 8000 (FastAPI)
   getCrowdData: (hospitalId) => {
