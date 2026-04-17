@@ -46,12 +46,16 @@ export const hospitalService = {
   deletePatient: (id) => api.delete(`/user/patients/${id}`),
   deleteBooking: (id) => api.delete(`/user/bookings/${id}`),
 
-  // AI Engine (IoT Nodes)
-  getCrowdData: (hospitalId) => axios.get(`http://localhost:8000/crowd/${hospitalId}`),
+  // AI Engine (IoT Nodes) - Port 8000 (FastAPI)
+  getCrowdData: (hospitalId) => {
+    if (!hospitalId) return Promise.reject("Invalid ID");
+    return axios.get(`http://127.0.0.1:8000/crowd/${hospitalId}`);
+  },
   syncFrameMetadata: async (hospitalId, count) => {
-    // Sync with FastAPI AI Engine (Crowd Intel)
-    await axios.post(`http://localhost:8000/analyze-frame/${hospitalId}`, { count }).catch(() => {});
-    // Sync with Main Node.js Backend (Dashboard State)
+    if (!hospitalId) return;
+    // 1. Sync with FastAPI AI Engine (Crowd Intel)
+    await axios.post(`http://127.0.0.1:8000/analyze-frame/${hospitalId}`, { count }).catch(() => {});
+    // 2. Sync with Main Node.js Backend (Dashboard State)
     return api.patch(`/admin/hospitals/${hospitalId}/crowd`, { crowdCount: count, crowdScore: Math.min(100, Math.round(count * 2.5)) });
   },
 

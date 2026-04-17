@@ -5,6 +5,7 @@ import {
   Terminal, 
   LayoutDashboard, 
   ShieldCheck, 
+  ShieldAlert,
   Activity,
   ArrowRight,
   DatabaseZap,
@@ -120,21 +121,15 @@ const PortalPage = () => {
             className="group relative bg-white/70 backdrop-blur-xl p-8 sm:p-10 cursor-pointer rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200 shadow-lg shadow-slate-200/40 overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-            
             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-500 mb-6 sm:mb-8 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
               <Activity size={28} className="sm:size-[32px]" />
             </div>
-            
-            <h3 className="text-xl sm:text-2xl font-black text-slate-950 mb-2 sm:mb-3 tracking-tight">Patient Terminal</h3>
-            <p className="text-slate-500 text-sm sm:text-lg font-medium mb-8 sm:mb-10 leading-relaxed min-h-0 sm:min-h-[80px]">
-              Deploy autonomous AI triage for real-time symptom analysis and priority hospital routing.
+            <h3 className="text-xl sm:text-2xl font-black text-slate-950 mb-2 sm:mb-3 tracking-tight">Health Platform</h3>
+            <p className="text-slate-500 text-sm sm:text-lg font-medium mb-8 sm:mb-10 leading-relaxed">
+              Standard clinical triage and profiling for non-urgent care and appointment routing.
             </p>
-            
-            <div className="flex items-center text-indigo-600 font-bold text-base sm:text-lg">
-              <span className="relative">
-                Initialize Triage
-                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-indigo-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
-              </span>
+            <div className="flex items-center text-indigo-600 font-bold text-base">
+              <span>Enter Portal</span>
               <ArrowRight size={18} className="ml-2 group-hover:translate-x-2 transition-transform" />
             </div>
           </motion.div>
@@ -148,23 +143,52 @@ const PortalPage = () => {
             className="group relative bg-slate-900 p-8 sm:p-10 cursor-pointer rounded-[2rem] sm:rounded-[2.5rem] border border-slate-800 shadow-2xl overflow-hidden"
           >
              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-
             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/10 rounded-2xl flex items-center justify-center text-white/40 mb-6 sm:mb-8 border border-white/5 group-hover:bg-white group-hover:text-slate-900 transition-all duration-300">
               <LayoutDashboard size={28} className="sm:size-[32px]" />
             </div>
-            
-            <h3 className="text-xl sm:text-2xl font-black text-white mb-2 sm:mb-3 tracking-tight">Node Management</h3>
-            <p className="text-slate-400 text-sm sm:text-lg font-medium mb-8 sm:mb-10 leading-relaxed min-h-0 sm:min-h-[80px]">
-              Regional telemetry, live facility orchestration, and resource load-balancing console.
+            <h3 className="text-xl sm:text-2xl font-black text-white mb-2 sm:mb-3 tracking-tight">Admin Console</h3>
+            <p className="text-slate-400 text-sm sm:text-lg font-medium mb-8 sm:mb-10 leading-relaxed">
+              Regional telemetry, live facility orchestration, and resource management node.
             </p>
-            
-            <div className="flex items-center text-white font-bold text-base sm:text-lg">
-              <span className="relative">
-                Launch Console
-                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-white scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
-              </span>
+            <div className="flex items-center text-white font-bold text-base">
+              <span>Launch Hub</span>
               <ArrowRight size={18} className="ml-2 group-hover:translate-x-2 transition-transform" />
             </div>
+          </motion.div>
+
+          {/* EMERGENCY TERMINAL - NEW */}
+          <motion.div 
+            variants={itemVariants}
+            whileHover={{ y: -8 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/emergency-terminal')}
+            className="group relative bg-rose-600 p-8 sm:p-10 cursor-pointer rounded-[2rem] sm:rounded-[2.5rem] md:col-span-2 shadow-2xl shadow-rose-600/30 overflow-hidden"
+          >
+             <motion.div 
+               animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+               transition={{ duration: 3, repeat: Infinity }}
+               className="absolute inset-0 bg-white/10"
+             />
+             <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="max-w-xl">
+                   <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-6 border border-white/30 group-hover:bg-white group-hover:text-rose-600 transition-all duration-300">
+                     <ShieldAlert size={32} className="animate-pulse" />
+                   </div>
+                   <h3 className="text-2xl sm:text-4xl font-black text-white mb-2 tracking-tighter">Emergency Distress Terminal</h3>
+                   <p className="text-rose-100 text-sm sm:text-xl font-medium leading-relaxed">
+                     Fast-entry mode for urgent distress. Automatically dispatches nearest ambulance and routes to optimized medical hubs.
+                   </p>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                   <div className="px-6 py-3 bg-white text-rose-600 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl group-hover:scale-110 transition-transform">
+                      Initiate Rescue
+                   </div>
+                   <div className="flex items-center gap-2 text-rose-200 text-[10px] font-black uppercase tracking-[0.2em]">
+                      <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      Satellite GIS Active
+                   </div>
+                </div>
+             </div>
           </motion.div>
         </div>
 

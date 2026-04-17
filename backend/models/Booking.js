@@ -5,6 +5,14 @@ const bookingSchema = new mongoose.Schema({
   hospitalId: { type: String, required: true },
   hospitalName: { type: String, required: true },
   patientName: { type: String, required: true },
+  patientLocation: {
+    lat: { type: Number },
+    lng: { type: Number },
+  },
+  hospitalLocation: {
+    lat: { type: Number },
+    lng: { type: Number },
+  },
   appointmentTime: { type: String, required: true },
   bookingId: { type: String, required: true, unique: true },
   status: { type: String, default: 'Confirmed' },

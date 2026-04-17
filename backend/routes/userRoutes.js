@@ -14,12 +14,19 @@ const { OpenAI } = require('openai');
 const Patient = require('../models/Patient');
 const Booking = require('../models/Booking');
 
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY,
+// Task-Specific AI Nodes
+const PROTOCOL_AI = new OpenAI({ 
+  apiKey: process.env.PROTOCOL_API_KEY,
   baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"
 });
 
-const AI_MODEL = "google/gemma-3-27b-it:free";
+const PRESCRIPTION_AI = new OpenAI({ 
+  apiKey: process.env.PRESCRIPTION_API_KEY,
+  baseURL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"
+});
+
+const PROTOCOL_MODEL = "openai/gpt-4o-mini";
+const PRESCRIPTION_MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 // Configure Multer for report uploads
 const storage = multer.diskStorage({
@@ -80,8 +87,8 @@ async function generateHealthPlan(patient, additionalPrompt = "") {
       throw new Error("Key missing");
     }
 
-    const response = await openai.chat.completions.create({
-      model: AI_MODEL,
+    const response = await PROTOCOL_AI.chat.completions.create({
+      model: PROTOCOL_MODEL,
       messages: [
         { role: "system", content: "You provide medically dynamic JSON protocols with clinical variety." },
         { role: "user", content: prompt }
@@ -204,9 +211,9 @@ router.post('/upload-report', upload.single('report'), async (req, res) => {
     let aiSummary = "Report data ingested into clinical database.";
     
     try {
-      if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'sk-your-api-key-here') {
-        const aiResponse = await openai.chat.completions.create({
-          model: AI_MODEL,
+      if (process.env.PROTOCOL_API_KEY) {
+        const aiResponse = await PROTOCOL_AI.chat.completions.create({
+          model: PROTOCOL_MODEL,
           messages: [{
             role: "system", content: "Summarize medical OCR data into a professional 2-sentence summary and 1 key takeaway."
           }, {
@@ -281,13 +288,15 @@ router.post('/analyze-prescription', upload.single('prescription'), async (req, 
           "recommendation": "Overall clinical directive"
         }
 
-        CRITICAL OVERRIDE: If the condition is Heart/Chest Pain and Dolo/Paracetamol is prescribed, 
-        set isCritical: true and severity: 'High'.
+        CRITICAL OVERRIDE: 
+        1. If the condition is Heart/Chest Pain and Dolo/Paracetamol is prescribed, set isCritical: true, severity: 'High'.
+        2. If the patient's reported condition (e.g., Cough) is NOT treated by the detected medication (e.g., the drug treats something totally different), 
+           set isCritical: true, severity: 'High', and message: 'CAUTION: Medication mismatch detected. Reported symptoms (Cough) do not align with prescribed therapy. Re-evaluation recommended.'
       `;
 
-      const aiResponse = await openai.chat.completions.create({
-        model: AI_MODEL,
-        messages: [{ role: "system", content: "You are a clinical pharmacologist AI." }, { role: "user", content: prompt }],
+      const aiResponse = await PRESCRIPTION_AI.chat.completions.create({
+        model: PRESCRIPTION_MODEL,
+        messages: [{ role: "system", content: "You are a clinical pharmacologist AI. You verify alignment between patient condition/symptoms and prescribed drugs." }, { role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
       structuredAnalysis = JSON.parse(aiResponse.choices[0].message.content);
@@ -346,9 +355,11 @@ router.post('/health-hub/:patientId/recalculate', async (req, res) => {
 });
 router.get('/patients', async (req, res) => {
   try {
+    console.log('GET /api/user/patients hit');
     const patients = await Patient.find().sort({ createdAt: -1 });
     res.json(patients);
   } catch (err) {
+    console.error('Patients Fetch Error:', err.message);
     res.status(500).json({ message: err.message });
   }
 });

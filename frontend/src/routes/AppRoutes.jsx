@@ -6,6 +6,7 @@ import SymptomPage from '../pages/SymptomPage';
 import HospitalResults from '../pages/HospitalResults';
 import BookingPage from '../pages/BookingPage';
 import EmergencyPage from '../pages/EmergencyPage';
+import PatientEmergencyTerminal from '../pages/PatientEmergencyTerminal';
 import HospitalDashboard from '../pages/HospitalDashboard';
 import HealthHub from '../pages/HealthHub';
 import { useAppStore } from '../store/useAppStore';
@@ -40,6 +41,7 @@ const AppRoutes = () => {
         <Route path="/results" element={<HospitalResults />} />
         <Route path="/booking" element={<BookingPage />} />
         <Route path="/emergency" element={<EmergencyPage />} />
+        <Route path="/emergency-terminal" element={<PatientEmergencyTerminal />} />
 
         {/* Hospital Admin Flows */}
         <Route path="/admin/dashboard" element={<HospitalDashboard />} />

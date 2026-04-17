@@ -243,11 +243,26 @@ const AegisAssist = () => {
             <div ref={chatEndRef} />
           </div>
 
+          {/* Suggestion Chips Rail */}
+          <div className="px-6 py-3 bg-white border-t border-slate-100">
+             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {Object.keys(DISEASE_DB).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => processQuery(DISEASE_DB[key].name)}
+                    className="px-4 py-2 bg-sky-50 text-sky-600 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap border border-sky-100 hover:bg-sky-500 hover:text-white transition-all shadow-sm active:scale-95"
+                  >
+                    {DISEASE_DB[key].name}
+                  </button>
+                ))}
+             </div>
+          </div>
+
           <form onSubmit={handleSend} className="p-6 bg-white border-t border-slate-100 flex gap-3">
             <button type="button" onClick={startListening} className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-100 text-slate-500 hover:bg-sky-100 hover:text-sky-600'}`}>
               <Mic size={20} />
             </button>
-            <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type or click the mic..." className="flex-1 bg-slate-50 px-4 py-3 rounded-xl outline-none text-xs font-medium" />
+            <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type or click a chip..." className="flex-1 bg-slate-50 px-4 py-3 rounded-xl outline-none text-xs font-medium" />
             <button type="submit" className="w-12 h-12 bg-sky-500 text-white rounded-xl flex items-center justify-center shadow-lg"><Send size={20} /></button>
           </form>
           <div className="px-6 pb-4 text-[9px] text-slate-400 font-bold text-center">AI Guidance • Click mic to speak</div>

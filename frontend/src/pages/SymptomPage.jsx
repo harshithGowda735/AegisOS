@@ -18,9 +18,29 @@ const SymptomPage = () => {
   const { processSymptoms, isLoading, userProfile } = useAppStore();
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [voiceGuidance, setVoiceGuidance] = useState(true);
   const navigate = useNavigate();
 
-  // 🎙️ Speech-to-Text Autonomous Logic
+  // 🔊 Voice Assistant: SPEECH SYNTHESIS (TTS)
+  const speak = (text) => {
+    if (!voiceGuidance || !window.speechSynthesis) return;
+    
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    const setVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => (v.name.includes('Google') || v.name.includes('Female') || v.name.includes('Natural')) && v.lang.startsWith('en')) || voices[0];
+      if (preferred) utterance.voice = preferred;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length > 0) {
+      setVoice();
+    } else {
+      window.speechSynthesis.onvoiceschanged = setVoice;
+    }
+  };
   const startSpeechRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -48,26 +68,40 @@ const SymptomPage = () => {
 
   const handleVoiceSubmit = async (voiceInput) => {
     if (!voiceInput.trim()) return;
+    speak("Analyzing clinical data. Please wait.");
     const success = await processSymptoms(voiceInput);
     if (success) {
-      if (useAppStore.getState().isAutonomouslyBooked) {
-        navigate('/booking');
-      } else {
-        navigate('/results');
-      }
+      const state = useAppStore.getState();
+      const severityText = state.severity || 'Moderate';
+      speak(`Analysis complete. ${severityText} severity detected. Routing to the best facility.`);
+      
+      setTimeout(() => {
+        if (state.isAutonomouslyBooked) {
+          navigate('/booking');
+        } else {
+          navigate('/results');
+        }
+      }, 1500);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
+    speak("Analyzing symptoms. Syncing with Aegis Node.");
     const success = await processSymptoms(input);
     if (success) {
-      if (useAppStore.getState().isAutonomouslyBooked) {
-        navigate('/booking');
-      } else {
-        navigate('/results');
-      }
+      const state = useAppStore.getState();
+      const severityText = state.severity || 'Moderate';
+      speak(`Triage data processed. Condition marked as ${severityText} severity.`);
+      
+      setTimeout(() => {
+        if (state.isAutonomouslyBooked) {
+          navigate('/booking');
+        } else {
+          navigate('/results');
+        }
+      }, 1500);
     }
   };
 
@@ -84,11 +118,23 @@ const SymptomPage = () => {
           </div>
           Back to Profile
         </button>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 font-black text-[10px]">
-             {userProfile?.age || '25'}
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => {
+              setVoiceGuidance(!voiceGuidance);
+              if (!voiceGuidance) speak("Voice guidance enabled.");
+            }}
+            className={`p-3 rounded-xl transition-all ${voiceGuidance ? 'bg-sky-50 text-sky-600' : 'bg-slate-50 text-slate-400'}`}
+            title="Toggle Voice Guidance"
+          >
+            {voiceGuidance ? <Volume2 size={20} /> : <MicOff size={20} />}
+          </button>
+          <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
+            <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 font-black text-[10px]">
+               {userProfile?.age || '25'}
+            </div>
+            <p className="text-sm font-black text-slate-900 tracking-tight">{userProfile?.gender || 'Patient'}</p>
           </div>
-          <p className="text-sm font-black text-slate-900 tracking-tight">{userProfile?.gender || 'Patient'}</p>
         </div>
       </nav>
 

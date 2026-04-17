@@ -257,6 +257,9 @@ export const useAppStore = create((set, get) => ({
     }
   },
 
+  setAmbulanceDispatched: (data) => set({ ambulanceDispatched: data }),
+  setUserLocation: (loc) => set({ userLocation: loc }),
+  setBooking: (data) => set({ booking: data }),
   selectHospital: (hospital) => set({ bestHospital: hospital }),
 
   resetStore: () => set({

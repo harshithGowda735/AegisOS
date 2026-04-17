@@ -5,77 +5,54 @@
     animation: springUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
   
-  /* Stripe-like soft shadow */
   .saas-shadow {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 
-  .saas-shadow-lg {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
-  }
-
-  /* Notion-like interactive card */
   .saas-card {
     @apply bg-white border border-slate-100 rounded-[1.25rem] transition-all duration-300;
   }
 
-  .saas-card:hover {
-    @apply border-sky-200 shadow-xl shadow-sky-500/5;
+  @keyframes marquee {
+    0% { transform: translateX(100vw); }
+    100% { transform: translateX(-100%); }
   }
 
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(248, 250, 252, 0.8) 50%,
-      rgba(255, 255, 255, 0) 100%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
+  .animate-marquee {
+    animation: marquee 40s linear infinite;
+  }
+
+  .animate-nexus-pulse {
+    animation: nexusPulse 1.5s ease-in-out infinite alternate;
   }
 }
 
-@keyframes scan {
-  0% { top: 0%; }
-  100% { top: 100%; }
-}
-
-.animate-scan {
-  animation: scan 3s linear infinite;
+@keyframes nexusPulse {
+  0% { transform: scaleY(0.8); opacity: 0.3; }
+  100% { transform: scaleY(1.2); opacity: 1; }
 }
 
 @keyframes springUp {
-  0% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.99);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  0% { opacity: 0; transform: translateY(10px) scale(0.99); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+/* Custom Scrollbar for sidebars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
 }
-
-/* Scrollbar refinement */
-::-webkit-scrollbar {
-  width: 5px;
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #f1f5f9;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #e2e8f0;
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.2);
 }
 
 body {
   @apply bg-white text-slate-800 antialiased;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }

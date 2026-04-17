@@ -4,7 +4,7 @@ import {
   Users, Stethoscope, CheckCircle2, Clock, RefreshCw,
   Activity, UserCheck, Plus, Calendar, MoreHorizontal,
   Search, Filter, ArrowUpRight, Heart, BedDouble, Trash2,
-  Wifi, AlertTriangle, PenLine, ShieldCheck, Navigation
+  Wifi, AlertTriangle, PenLine, ShieldCheck, Navigation, X
 } from 'lucide-react';
 import Skeleton from '../components/ui/Skeleton';
 import Button from '../components/ui/Button';
@@ -23,6 +23,10 @@ const HospitalDashboard = () => {
   const [showAddDoctor, setShowAddDoctor] = useState(false);
   const [newDoctor, setNewDoctor] = useState({ name: '', specialty: '', education: '' });
   
+  // Mission & Rescue state
+  const [liveMission, setLiveMission] = useState(null);
+  const [ambulances, setAmbulances] = useState([]);
+  
   // Bed management state
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [showAddBed, setShowAddBed] = useState(false);
@@ -30,7 +34,10 @@ const HospitalDashboard = () => {
 
   useEffect(() => {
     fetchAdminData();
-    const interval = setInterval(fetchAdminData, 5000);
+    const interval = setInterval(() => {
+        fetchAdminData();
+        hospitalService.getAmbulances().then(setAmbulances);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -510,6 +517,141 @@ const HospitalDashboard = () => {
                     <Wifi size={48} className="mx-auto text-slate-200 mb-6" />
                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Select a hospital to initialize IoT Node</p>
                 </div>
+            )}
+
+            {/* Pending Rescues Queue (Fleet Dispatch Interface) */}
+            <div className="mt-12">
+               <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm">
+                  <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+                     <div className="flex items-center gap-3">
+                        <Activity className="text-rose-500 animate-pulse" size={24} />
+                        <h3 className="text-xl font-bold tracking-tight">Pending Rescues (Next Patients)</h3>
+                     </div>
+                     <span className="px-4 py-1.5 bg-white border border-slate-100 rounded-full text-[12px] font-black text-slate-500 uppercase tracking-widest leading-none">
+                        {(allPatients || []).filter(p => p.severity === 'High').length} Waiting
+                     </span>
+                  </div>
+                  <div className="p-8">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {(allPatients || []).filter(p => p.severity === 'High').map((patient) => (
+                           <div key={patient._id} className="bg-white p-7 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-sky-100 transition-all group relative overflow-hidden">
+                              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-[100px] -mr-12 -mt-12 group-hover:bg-sky-50 transition-colors" />
+                              <div className="relative z-10">
+                                <div className="flex items-center justify-between mb-6">
+                                   <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-rose-500 shadow-sm group-hover:bg-white group-hover:text-sky-500 transition-all">
+                                      <UserCheck size={24} />
+                                   </div>
+                                   <div className="text-right">
+                                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Triage Level</p>
+                                      <span className="text-[11px] font-black text-rose-500 uppercase">Critical</span>
+                                   </div>
+                                </div>
+                                <h4 className="font-bold text-lg text-slate-900 mb-1">{patient.name}</h4>
+                                <p className="text-[11px] font-bold text-slate-500 mb-6 flex items-center gap-2">
+                                   <Activity size={12} className="text-rose-400" />
+                                   {patient.age}Y • {patient.medicalHistory?.[0] || 'Heart Symptoms'}
+                                </p>
+                                
+                                <button 
+                                  onClick={() => setLiveMission(patient)}
+                                  className="w-full py-4 bg-slate-900 hover:bg-sky-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl hover:shadow-sky-500/20 active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                   <Navigation size={14} /> PICKUP PATIENT
+                                </button>
+                              </div>
+                           </div>
+                        ))}
+                     </div>
+                     {(!allPatients || (allPatients || []).filter(p => p.severity === 'High').length === 0) && (
+                        <div className="py-20 text-center">
+                           <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                              <CheckCircle2 className="text-slate-200" size={32} />
+                           </div>
+                           <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs">All patients successfully rescued</p>
+                        </div>
+                     )}
+                  </div>
+               </div>
+            </div>
+
+            {/* Live Mission Modal / Overlay */}
+            {liveMission && (
+               <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
+                  <div className="bg-white w-full max-w-5xl rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                     <div className="bg-slate-900 p-10 flex items-center justify-between text-white border-b border-white/5">
+                        <div className="flex items-center gap-6">
+                           <div className="w-16 h-16 bg-sky-500 rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/20">
+                              <Activity size={32} className="animate-pulse text-white" />
+                           </div>
+                           <div>
+                              <div className="flex items-center gap-3 mb-1">
+                                 <h3 className="text-2xl font-black tracking-tight">Live Mission Hub</h3>
+                                 <span className="px-3 py-1 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full">Priority 1</span>
+                              </div>
+                              <p className="text-[11px] font-bold text-sky-400 uppercase tracking-[0.25em]">Intercepting Patient: {liveMission.name}</p>
+                           </div>
+                        </div>
+                        <button onClick={() => setLiveMission(null)} className="w-12 h-12 bg-white/10 hover:bg-rose-500 rounded-2xl flex items-center justify-center transition-all text-white/50 hover:text-white">
+                           <X size={24} />
+                        </button>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2">
+                        <div className="h-[500px] bg-slate-100 border-r border-slate-50 relative">
+                           <GoogleMap 
+                              center={liveMission.userLocation || { lat: 12.9716, lng: 77.5946 }} 
+                              zoom={15}
+                              markers={[
+                                 { position: liveMission.userLocation || { lat: 12.9716, lng: 77.5946 }, title: liveMission.name },
+                                 { position: { lat: 12.9716, lng: 77.5946 }, title: "Hospital Hub" }
+                              ]}
+                            />
+                            <div className="absolute bottom-6 left-6 right-6 p-4 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 text-white flex items-center justify-between">
+                               <div className="flex items-center gap-3">
+                                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest">GPS Telemetry Locked</span>
+                               </div>
+                               <span className="text-[10px] font-mono text-sky-400">12.9716, 77.5946</span>
+                            </div>
+                        </div>
+                        <div className="p-12 space-y-10 flex flex-col justify-center">
+                           <div>
+                              <p className="text-[11px] font-black uppercase text-slate-400 tracking-[0.2em] mb-6 flex items-center gap-2">
+                                 <Activity size={14} className="text-sky-500" />
+                                 Clinical Intelligence
+                              </p>
+                              <div className="space-y-6">
+                                 <div className="p-8 bg-slate-50 rounded-[2rem] border border-white shadow-sm">
+                                    <div className="flex items-center gap-5 mb-4">
+                                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-rose-500 shadow-sm font-black italic">
+                                          !
+                                       </div>
+                                       <div>
+                                          <p className="text-lg font-black text-slate-900">{liveMission.severity || 'High'} Severity Emergency</p>
+                                          <p className="text-xs font-bold text-slate-500">History: {liveMission.medicalHistory?.join(', ') || 'N/A'}</p>
+                                       </div>
+                                    </div>
+                                    {liveMission.aiAssessment && (
+                                       <p className="text-[13px] font-medium text-slate-600 italic bg-white/50 p-4 rounded-xl">
+                                          "{liveMission.aiAssessment}"
+                                       </p>
+                                    )}
+                                 </div>
+                              </div>
+                           </div>
+                           <div className="p-8 bg-emerald-50 border border-emerald-100 rounded-[2.5rem] relative overflow-hidden group">
+                              <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-1000" />
+                              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 relative z-10">Dispatch Protocol</p>
+                              <p className="text-[13px] font-bold text-emerald-900 leading-relaxed relative z-10">
+                                 Mission active. Professional ambulance unit #A-90 dispatched. GIS intersection confirmed. Estimated intercept: 7 mins.
+                              </p>
+                           </div>
+                           <Button onClick={() => setLiveMission(null)} className="w-full h-16 bg-slate-900 text-[12px] uppercase tracking-widest font-black rounded-2xl shadow-2xl hover:bg-sky-600 transition-all">
+                              Retreat Mission
+                           </Button>
+                        </div>
+                     </div>
+                  </div>
+               </div>
             )}
           </div>
         )}

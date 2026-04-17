@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
 import Button from '../components/ui/Button';
 import GoogleMap from '../components/ui/GoogleMap';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 import {
   CheckCircle2, MapPin, Clock, Calendar,
   CreditCard, ShieldCheck, ArrowLeft,
-  Info, Activity, Sparkles, Siren, Navigation,
-  BedDouble, UserCheck, AlertTriangle, Timer,
+  Info, Activity, Sparkles, AlertTriangle, Navigation,
+  BedDouble, UserCheck, Timer,
   FileText, ShieldAlert, ReceiptText, Landmark,
   ChevronRight, Lock, Fingerprint, Hospital
 } from 'lucide-react';
@@ -40,10 +43,10 @@ const BookingPage = () => {
   } = useAppStore();
   
   const navigate = useNavigate();
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirming, setIsConfirming] = React.useState(false);
   const assignedDoctor = doctors[0] || { name: 'Dr. Ramnik Patel', specialty: 'General Physician' };
-  const [fee] = useState(() => Math.floor(Math.random() * 51) + 500); 
-
+  const [fee] = React.useState(100); 
+  const receiptRef = useRef(null);
   const handleBooking = async () => {
     setIsConfirming(true);
     const success = await confirmBooking({
@@ -64,49 +67,66 @@ const BookingPage = () => {
 
   const isEmergency = severity === 'High';
 
+  const downloadReceipt = async () => {
+    if (!receiptRef.current) return;
+    try {
+      // Ensure element is temporary "visible" for capture
+      const element = receiptRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`AegisOS-Bill-${currentPatientId?.slice(-6).toUpperCase()}.pdf`);
+    } catch (error) {
+      console.error("Receipt generation failed:", error);
+    }
+  };
+
   // ── No hospital state ────────────────────────────────────────
   if (!bestHospital && !booking) {
     return (
-      <motion.div 
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center text-white font-sans"
-      >
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
         <div className="max-w-md">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-          >
-            <ShieldAlert className="w-16 h-16 text-sky-500 mx-auto mb-6" />
-          </motion.div>
-          <h2 className="text-3xl font-black mb-4 tracking-tighter italic">Initializing Dispatch Node...</h2>
-          <Button onClick={() => navigate('/')} className="bg-sky-600 hover:bg-sky-500">Return to Aegis Root</Button>
+          <ShieldAlert size={64} className="text-slate-300 mx-auto mb-6" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">No Active Routing</h2>
+          <p className="text-slate-500 mb-8">No hospital routing session detected. Please return to the symptom triage page.</p>
+          <Button onClick={() => navigate('/triage')} className="w-full">Start Triage Analysis</Button>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
-  // ── Processing State ─────────────────────────────────────────
+  // ── LOADING STATE ────────────────────────────────────────────
   if (isConfirming) {
     return (
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center"
+        className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center"
       >
-        <div className="w-24 h-24 mb-8 relative">
-           <motion.div 
-             animate={{ rotate: 360 }}
-             transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-             className="absolute inset-0 border-4 border-indigo-600/20 rounded-full"
-           />
-           <motion.div 
-             animate={{ rotate: 360 }}
-             transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-             className="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full"
-           />
-           <CreditCard className="absolute inset-0 m-auto text-indigo-600 w-8 h-8" />
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Aegis Pay Node Active</h2>
-        <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.2em] mt-2 animate-pulse">Securing Clinical Transaction...</p>
+         <div className="w-24 h-24 relative mb-8">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+              className="absolute inset-0 border-4 border-indigo-600/20 rounded-full"
+            />
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              className="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full"
+            />
+            <CreditCard className="absolute inset-0 m-auto text-indigo-600 w-8 h-8" />
+         </div>
+         <h2 className="text-2xl font-bold tracking-tight text-slate-900">Aegis Pay Node Active</h2>
+         <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.2em] mt-2 animate-pulse">Securing Clinical Transaction...</p>
       </motion.div>
     );
   }
@@ -126,7 +146,7 @@ const BookingPage = () => {
               initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}
               className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md"
             >
-              {isEmergency ? <Siren size={40} className="text-white animate-pulse" /> : <CheckCircle2 size={40} className="text-white" />}
+              {isEmergency ? <AlertTriangle size={40} className="text-white animate-pulse" /> : <CheckCircle2 size={40} className="text-white" />}
             </motion.div>
             <h1 className="text-4xl font-black text-white tracking-tight">
               {isEmergency ? 'Emergency Dispatched' : 'Booking Confirmed'}
@@ -145,7 +165,7 @@ const BookingPage = () => {
                 <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-rose-600 rounded-xl flex items-center justify-center text-white">
-                      <Siren size={20} className="animate-pulse" />
+                      <Activity size={20} className="animate-pulse" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-rose-400 mb-1">Ambulance to You</p>
@@ -229,8 +249,86 @@ const BookingPage = () => {
                   <span className="text-2xl font-black text-slate-900">₹{fee}</span>
                 </div>
                 <div className="pt-4">
+                  {isEmergency && (
+                    <Button onClick={() => navigate('/emergency')} className="w-full h-14 rounded-xl bg-sky-600 shadow-xl mb-3">Track Live Dispatch</Button>
+                  )}
                   <Button onClick={() => navigate('/health-hub')} className="w-full h-14 rounded-xl bg-slate-900 shadow-xl">Return to Dashboard</Button>
-                  <button onClick={() => window.print()} className="w-full mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Download Receipt</button>
+                  <button onClick={downloadReceipt} className="w-full mt-4 text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">Download Professional Receipt</button>
+                </div>
+
+                {/* Hidden Receipt Template - Made renderable but out of view */}
+                <div style={{ position: 'absolute', left: '-9999px', top: '0' }}>
+                  <div ref={receiptRef} style={{ padding: '64px', backgroundColor: '#ffffff', color: '#0f172a', width: '800px', fontFamily: 'sans-serif' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '4px solid #0f172a', paddingBottom: '32px', marginBottom: '40px' }}>
+                        <div>
+                           <h1 style={{ fontSize: '36px', fontWeight: '900', letterSpacing: '-0.05em', marginBottom: '8px' }}>AEGIS<span style={{ color: '#4f46e5' }}>OS</span></h1>
+                           <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Medical Care & Clinical Intelligence</p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                           <h2 style={{ fontSize: '20px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Appointment Bill</h2>
+                           <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#64748b' }}>ID: TXN-{currentPatientId?.slice(-8).toUpperCase()}</p>
+                        </div>
+                     </div>
+
+                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', marginBottom: '48px' }}>
+                        <div>
+                           <h3 style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.1em', marginBottom: '16px' }}>Patient Information</h3>
+                           <p style={{ fontWeight: '900', fontSize: '20px' }}>{booking?.patientName || 'Clinical Subject'}</p>
+                           <p style={{ fontSize: '14px', color: '#64748b', fontWeight: 'bold' }}>UID: {currentPatientId}</p>
+                           <p style={{ fontSize: '14px', color: '#64748b', fontWeight: 'bold' }}>Status: {severity} Priority</p>
+                        </div>
+                        <div>
+                           <h3 style={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.1em', marginBottom: '16px' }}>Medical Facility</h3>
+                           <p style={{ fontWeight: '900', fontSize: '20px' }}>{bestHospital?.name}</p>
+                           <p style={{ fontSize: '14px', color: '#64748b', fontWeight: 'bold' }}>Assigned: {assignedDoctor.name}</p>
+                           <p style={{ fontSize: '14px', color: '#64748b', fontWeight: 'bold' }}>Dept: {assignedDoctor.specialty}</p>
+                        </div>
+                     </div>
+
+                     <div style={{ backgroundColor: '#f8fafc', borderRadius: '24px', padding: '32px', marginBottom: '40px' }}>
+                        <table style={{ width: '100%' }}>
+                           <thead>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', color: '#94a3b8' }}>
+                                 <th style={{ textAlign: 'left', paddingBottom: '16px' }}>Description</th>
+                                 <th style={{ textAlign: 'right', paddingBottom: '16px' }}>Quantity</th>
+                                 <th style={{ textAlign: 'right', paddingBottom: '16px' }}>Amount</th>
+                              </tr>
+                           </thead>
+                           <tbody style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                              <tr>
+                                 <td style={{ padding: '16px 0' }}>Clinical Consultation & Triage</td>
+                                 <td style={{ padding: '16px 0', textAlign: 'right' }}>1</td>
+                                 <td style={{ padding: '16px 0', textAlign: 'right' }}>₹{fee}.00</td>
+                              </tr>
+                              <tr>
+                                 <td style={{ padding: '16px 0', color: '#059669' }}>Aegis AI Optimization Rebate</td>
+                                 <td style={{ padding: '16px 0', textAlign: 'right' }}>1</td>
+                                 <td style={{ padding: '16px 0', textAlign: 'right', color: '#059669' }}>-₹15.00</td>
+                              </tr>
+                              <tr>
+                                 <td style={{ padding: '16px 0' }}>System Service Node Tax</td>
+                                 <td style={{ padding: '16px 0', textAlign: 'right' }}>1</td>
+                                 <td style={{ padding: '16px 0', textAlign: 'right' }}>₹15.00</td>
+                              </tr>
+                           </tbody>
+                           <tfoot>
+                              <tr style={{ borderTop: '2px solid #0f172a' }}>
+                                 <td style={{ paddingTop: '24px', fontSize: '20px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '-0.025em' }}>Total Payable</td>
+                                 <td></td>
+                                 <td style={{ paddingTop: '24px', textAlign: 'right', fontSize: '30px', fontWeight: '900', letterSpacing: '-0.05em' }}>₹{fee}.00</td>
+                              </tr>
+                           </tfoot>
+                        </table>
+                     </div>
+
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#cbd5e1' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                           <div style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%' }} />
+                           Digital Transaction Verified
+                        </div>
+                        <div>Authorized by AegisOS Governance Node</div>
+                     </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -284,7 +382,7 @@ const BookingPage = () => {
                     </div>
                     <h2 className="text-3xl font-bold text-slate-900">{bestHospital?.name}</h2>
                   </div>
-                  {isEmergency && <div className="bg-rose-100 text-rose-600 p-3 rounded-2xl"><Siren size={24}/></div>}
+                  {isEmergency && <div className="bg-rose-100 text-rose-600 p-3 rounded-2xl"><AlertTriangle size={24}/></div>}
                 </div>
                 
                 <div className="flex flex-wrap gap-4 md:gap-8">
